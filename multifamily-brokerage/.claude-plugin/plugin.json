@@ -1,0 +1,9 @@
+{
+  "name": "multifamily-brokerage",
+  "version": "0.1.0",
+  "description": "Multifamily disposition toolkit: broker valuation summaries (.docx seller advisories) and OM-style Broker Opinion of Value PDF decks in The Multifamily Group navy/gold brand.",
+  "author": {
+    "name": "Dmytro Gladchenko"
+  },
+  "keywords": ["multifamily", "brokerage", "valuation", "BOV", "real-estate"]
+}
