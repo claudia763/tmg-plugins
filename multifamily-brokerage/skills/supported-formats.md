@@ -36,6 +36,49 @@ carried by the group header, e.g. Holly Ln / Wren Rowe duplex halves) are
 named from the group short name — do not let them drop silently (84-door
 M White portfolio, 7/2026).
 
+### AppFolio "Unit Type" rent roll XLSX (`AppFolioUnitTypeXlsxParser`)
+
+Added for Eclipse of White Rock 8/5/2026 (Ci Mgmt, 12/31/2025); registered
+FIRST in `XLSX_PARSERS`. Same AppFolio report-parameter preamble as
+`AppFolioXlsxParser` (Exported On / Properties / Units / As of / Include
+Non-Revenue Units) but a different column set entirely: Unit | Unit Type |
+BD/BA | Tenant | Sqft | Market Rent | Monthly Rent / SF | Rent | Recurring
+Charges | Deposit. **Detection** demands that whole set; the Status-column
+AppFolio export cannot satisfy it and `AppFolioXlsxParser`'s own detect needs
+a `Status` column this layout does not print — checked both ways, neither can
+steal the other's file.
+
+Layout gotchas:
+
+- **No Status column and no lease dates.** Occupancy comes from the Tenant
+  cell (`Vacant Unit`); Lease Start/End, Move-In/Out, Notice and MTM stay
+  blank rather than being inferred (MTM is never inferred).
+- **The Unit Type code does NOT encode bed/bath** — B1 is a 2/1, C1 a 3/2, so
+  the generic `^[A-Za-z]*(\d)` fallback would read B1 as a 1-bed. Bed and bath
+  come verbatim from the BD/BA column and are marked `bed_bath_explicit`;
+  Floor Plan stays the Unit Type code so plan roll-ups and sqft still work.
+- **"Recurring Charges" EXCLUDES the rent** (unlike Buildium, where it
+  includes it) — the totals row carries Rent and Recurring Charges in separate
+  columns. It is a lump with no per-charge detail, booked as one charge ->
+  Other Income.
+- **Three footer blocks, two of which disagree on purpose**: an "N Units"
+  totals row, a repeated "Total N Units" row (checked against the first before
+  either is trusted), and an Occupied/Vacant/Total occupancy table. Under
+  "Include Non-Revenue Units: No" the occupancy table still counts the
+  non-revenue doors the detail omits, so the gap is reconciled explicitly and
+  FLAGged — the workbook carries the revenue units only and nothing about the
+  missing door is guessed (Eclipse: 53 revenue units vs a 54-door table).
+- **The printed per-unit "Monthly Rent / SF" grand ratio silently excludes any
+  unit whose printed ratio is 0.** Eclipse's CASA-139 prints $0.00 against
+  $1,210 of rent, and the printed grand 1.156451 is exactly rent ÷ sqft over
+  the occupied units *less* that unit. Computing it the report's way makes it
+  a real tie-out; the unit's rent, sqft and market rent are carried through
+  unchanged and only the ratio check excludes it. FLAGged.
+
+11 checks at Eclipse (units, sqft, vacants, market/contract rent, deposits,
+lease charges, recurring charges, rent/SF ratio, and both occupancy-table
+rows).
+
 ### Yardi/ResMan "Rent Roll" XLSX (`YardiRentRollXlsxParser`)
 
 Validated on The Meadows/tmtx. Two-row column header joined per column;
@@ -267,6 +310,53 @@ spanning both sides of the ledger; **cash-balance rows** ("Beginning Cash",
 "Actual Ending Cash") are point-in-time balances, not flows — excluded
 entirely (reported, never silent) with the roll-forward checked for
 information. Multi-property exports need `--property`.
+
+### ResMan "Trailing Profit And Loss Detail" XLSX (`parse_t12_resman_trailing_xlsx`)
+
+Via `_is_resman_trailing_xlsx`, registered FIRST in `T12_XLSX_PARSERS`; added
+for Eclipse of White Rock 8/5/2026 (Ci Mgmt, Jan–Dec 2025, Accrual,
+Accounting Book: Default). ResMan's trailing P&L exported to Excel — a
+different animal from the ResMan PDF (`parse_t12_pdf_resman`), which has no
+column tree at all.
+
+Layout gotchas:
+
+- **The statement tree is encoded by WHICH COLUMN the label sits in**, not by
+  leading whitespace: col A = the grand NOI row, col B = ledger side and grand
+  totals (INCOME / TOTAL INCOME / EXPENSE / TOTAL EXPENSE), col C = a section
+  header *and* its roll-up, col D = accounts. Level is unambiguous with no
+  indent guessing.
+- **Do not key roll-ups off a `^Total` caption.** ResMan prints "4000 Total
+  RENTAL INCOME" — GL number first — so an anchored `^total` never fires and
+  an unanchored one also catches "TOTAL INCOME". The roll-up's GL number is
+  asserted against its section header's instead, so a mis-nested export is
+  caught rather than silently rolled into the wrong section.
+- **Month captions are "Jan 2025 Actual"** (May's cell carries an embedded
+  newline, `May 2025\nActual`) and the annual column is captioned **"Adjusted
+  Total"**, not TOTAL — which is why the generic `parse_t12_xlsx` header sniff
+  finds no 12-month header row here.
+- A section header carries no month values; its roll-up does. That is how
+  headers are told from data.
+- **Reimbursement accounts can be booked INSIDE an expense section.** Eclipse
+  carries 4301 Utility Reimbursement (−66,152.22) and 4302 Electricity
+  Reimbursement (−100.00) as negative expense inside "6200 UTILITIES". They
+  stay on the expense side — moving them to Other Income pushes money across
+  the ledger (exactly what the corpus cross-ledger guard prevents) and breaks
+  the tie-out to the statement's own printed Total Income/Total Expense — but
+  the run prints them by name so the netting is never invisible. Expect the
+  Gas/Other category to print negative when this happens, and expect no RUBS
+  income line.
+- Watch for statements that book collected/accrued rent only, with no Gross
+  Potential Rent, Vacancy Loss or Loss-to-Lease row anywhere (Eclipse):
+  economic occupancy cannot be read off such a T-12 and the usual
+  "RR market rent == current-month GPR" cross-check does not apply. Say so in
+  the header note.
+
+Verification: every printed row "Adjusted Total" vs its own monthly cells;
+every section roll-up vs its account detail month by month; TOTAL INCOME and
+TOTAL EXPENSE vs their section roll-ups and NOI vs income less expense, month
+by month. All three layers abort unless `--trust-monthly` (65 rows, 9 sections
+and 3 grand rows all tie at Eclipse).
 
 ### Owner-made "Rental schedule" operating statement (.xls/.xlsx) (`parse_t12_owner_rental_schedule`)
 

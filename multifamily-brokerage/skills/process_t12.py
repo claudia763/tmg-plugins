@@ -3026,9 +3026,341 @@ def parse_t12_appfolio_xlsx(path, trust_monthly=False, allow_partial=False):
         lines_out, row_fails, trust_monthly, _GRAND_PATS_APPFOLIO)
 
 
+# ----------------------------------------------------------------------------
+# ResMan "Trailing Profit And Loss Detail" XLSX
+# ----------------------------------------------------------------------------
+# Added for Eclipse of White Rock 8/5/2026 (Ci Mgmt, Jan-Dec 2025, Accrual,
+# Accounting Book: Default). This is ResMan's trailing P&L exported to Excel -
+# a different animal from the ResMan PDF (`parse_t12_pdf_resman`), which has no
+# column tree at all.
+#
+#   row 1   property name
+#   row 3   "Trailing Profit And Loss Detail"
+#   row 4   "<Month Year>- <basis> - Accounting Book: <book>"
+#   row 6   header: "Account" in col A, twelve "<Mon> <YYYY> Actual" month
+#           columns (E..P) and an "Adjusted Total" column (Q)
+#
+# The statement tree is encoded by WHICH COLUMN the label sits in - there is no
+# leading whitespace to measure and no "Total <X>" caption convention that can
+# be trusted on its own ("4000 Total RENTAL INCOME" carries the GL number
+# first, so an unanchored `^total` test never fires):
+#
+#   col A   grand NOI row                ("NET OPERATING INCOME")
+#   col B   ledger side + grand totals    ("INCOME", "TOTAL INCOME",
+#                                          "EXPENSE", "TOTAL EXPENSE")
+#   col C   section header + its roll-up  ("4000 RENTAL INCOME",
+#                                          "4000 Total RENTAL INCOME")
+#   col D   accounts                      ("4103 RENT INCOME")
+#
+# A section header carries no month values; its roll-up does. Level is
+# therefore unambiguous without any indent guessing, and the roll-up's GL
+# number is asserted against its section header's so a mis-nested export is
+# caught rather than silently rolled up into the wrong section.
+#
+# Watch for: reimbursement accounts booked INSIDE an expense section (Eclipse
+# carries 4301 UTILITY REIMBURSEMENT / 4302 ELECTRICITY REIMBURSEMENT as
+# negative expense inside "6200 UTILITIES"). They stay on the expense side -
+# moving them to revenue would push money across the ledger, which the corpus
+# cross-ledger guard exists to prevent - but the run prints them explicitly so
+# the netting is never invisible.
+
+_GRAND_PATS_RESMAN_TR = {
+    "rev": r"^total\s+income$",
+    "exp": r"^total\s+(operating\s+)?expenses?$",
+    "noi": r"^net\s+operating\s+income$",
+    "drop": r"^total\s+income$|^total\s+(operating\s+)?expenses?$"
+            r"|^net\s+operating\s+income$",
+}
+
+RESMAN_TR_MONTH = re.compile(r"^([A-Za-z]{3,9})\.?\s+(\d{4})\s+Actual$", re.I)
+
+
+def _resman_tr_month(v):
+    """'Jan 2025 Actual' / 'May 2025\\nActual' -> datetime, else None."""
+    tok = re.sub(r"\s+", " ", str(v or "")).strip()
+    m = RESMAN_TR_MONTH.match(tok)
+    if not m:
+        return None
+    for cand in (m.group(1), m.group(1)[:3]):
+        for fmt in ("%B", "%b"):
+            try:
+                return datetime.strptime(
+                    f"{cand.title()} {m.group(2)}", f"{fmt} %Y")
+            except ValueError:
+                pass
+    return None
+
+
+def _resman_tr_header(rows):
+    """-> (header_row_index, [month cols], [months], total col) or Nones."""
+    for i, r in enumerate(rows[:15]):
+        if not r or str(r[0] or "").strip().lower() != "account":
+            continue
+        got = [(j, _resman_tr_month(v)) for j, v in enumerate(r) if j >= 2]
+        got = [(j, d) for j, d in got if d]
+        if len(got) < 2:
+            continue
+        mcols = [j for j, _ in got]
+        tot = None
+        for j, v in enumerate(r):
+            if j > max(mcols) and re.fullmatch(
+                    r"adjusted total|total", re.sub(r"\s+", " ",
+                                                    str(v or "")).strip(),
+                    re.I):
+                tot = j
+                break
+        return i, mcols, [d for _, d in got], tot
+    return None, [], [], None
+
+
+def _is_resman_trailing_xlsx(path):
+    """True for a ResMan 'Trailing Profit And Loss Detail' xlsx export.
+
+    Keyed on the report title AND an 'Account' header row carrying
+    '<Mon> <YYYY> Actual' month captions at col C or right of it - narrow
+    enough that it cannot collide with AppFolio ('Account Name' in col A with
+    bare 'Mon YYYY' captions), OneSite (MM/DD/YYYY period-end headers), Yardi
+    (GL number in col A, no header caption row) or the generic owner layout
+    (plain 'Mon-YYYY' captions and a TOTAL/TOTALS column)."""
+    from openpyxl import load_workbook as _lw
+    try:
+        wb = _lw(path, read_only=True, data_only=True)
+    except Exception:
+        return False
+    try:
+        ws = wb[wb.sheetnames[0]]
+        rows = [list(r) for r in ws.iter_rows(values_only=True, max_row=40)]
+    except Exception:
+        return False
+    if not any(re.search(r"trailing\s+profit\s+and\s+loss", str(r[0] or ""),
+                         re.I)
+               for r in rows[:8] if r):
+        return False
+    hdr_i, _, _, tot = _resman_tr_header(rows)
+    return hdr_i is not None and tot is not None
+
+
+def parse_t12_resman_trailing_xlsx(path, trust_monthly=False,
+                                   allow_partial=False):
+    """ResMan Trailing P&L Detail xlsx -> (property, months, [Line])."""
+    from openpyxl import load_workbook as _lw
+
+    def _num(v):
+        if v is None:
+            return None
+        if isinstance(v, str):
+            s = v.strip().replace(",", "").replace("$", "")
+            if not s:
+                return None
+            neg = s.startswith("(") and s.endswith(")")
+            try:
+                f = float(s.strip("()"))
+            except ValueError:
+                return None
+            return -f if neg else f
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+
+    wb = _lw(path, read_only=True, data_only=True)
+    ws = wb[wb.sheetnames[0]]
+    rows = [list(r) for r in ws.iter_rows(values_only=True)]
+
+    hdr_i, month_cols, months, tot_col = _resman_tr_header(rows)
+    if hdr_i is None:
+        sys.exit("ERROR: no 'Account' + '<Mon> <YYYY> Actual' header row "
+                 "found in the ResMan trailing P&L xlsx.")
+    if tot_col is None:
+        sys.exit("ERROR: ResMan trailing P&L xlsx has no 'Adjusted Total' "
+                 "column - every row total check would be unverifiable.")
+
+    label_cols = list(range(0, min(month_cols)))     # A..D
+    acct_col, sec_col = max(label_cols), max(label_cols) - 1
+
+    # ---- header block ----------------------------------------------------
+    prop = re.sub(r"\s+", " ", str(rows[0][0] or "")).strip() if rows else ""
+    caption, basis, book = "", "", ""
+    for r in rows[1:hdr_i]:
+        a = re.sub(r"\s+", " ", str(r[0] or "")).strip() if r else ""
+        if not a:
+            continue
+        if re.search(r"profit\s+and\s+loss", a, re.I):
+            caption = a
+            continue
+        m = re.search(r"\b(accrual|cash)\b", a, re.I)
+        if m:
+            basis = m.group(1).title()
+        m = re.search(r"accounting book\s*:\s*(.+)$", a, re.I)
+        if m:
+            book = m.group(1).strip()
+    print(f"  ResMan export: {caption or 'Trailing Profit And Loss Detail'}"
+          + (f" | {basis} basis" if basis else "")
+          + (f" | Accounting Book: {book}" if book else ""))
+
+    # ---- body ------------------------------------------------------------
+    lines_out, row_fails = [], []
+    sec_subs = []            # (section, name, mvals, side) roll-ups
+    sub_fails, nest_fails = [], []
+    acct_by_section = {}
+    grand = {}
+    cur_section, n_checked = "", 0
+    side = "inc"
+    reimb = []               # revenue-coded accounts inside expense sections
+
+    for r in rows[hdr_i + 1:]:
+        lab_j = next((j for j in label_cols
+                      if j < len(r) and str(r[j] or "").strip()), None)
+        if lab_j is None:
+            continue
+        name = re.sub(r"\s+", " ", str(r[lab_j])).strip()
+        if not name:
+            continue
+        vals = [_num(r[j]) if j < len(r) else None for j in month_cols]
+        annual = (_num(r[tot_col]) if tot_col < len(r) else None)
+        has_vals = any(v is not None for v in vals)
+        mvals = [v or 0.0 for v in vals]
+
+        # ---- section header (no month values) ----------------------------
+        if not has_vals:
+            if lab_j >= sec_col:
+                cur_section = name
+            if re.fullmatch(r"(operating\s+)?(income|revenue)s?", name, re.I):
+                side = "inc"
+            elif re.fullmatch(r"(operating\s+)?expenses?", name, re.I):
+                side = "exp"
+            lines_out.append(Line("section", name, None, name, side))
+            continue
+
+        kind = ("account" if lab_j == acct_col else
+                "subtotal" if lab_j == sec_col else "grand")
+
+        if annual is not None:
+            n_checked += 1
+            if abs(sum(mvals) - annual) > 0.05:
+                row_fails.append((name, sum(mvals), annual,
+                                  "account" if kind == "account"
+                                  else "subtotal", side))
+
+        if kind == "account":
+            lines_out.append(Line("account", name, mvals, cur_section, side))
+            lines_out[-1].values_annual = annual
+            acct_by_section.setdefault(cur_section, []).append((name, mvals))
+            if side == "exp" and gl_number(name).startswith("4") and \
+                    sum(mvals) < 0:
+                reimb.append((name, cur_section, sum(mvals)))
+            continue
+
+        if kind == "subtotal":
+            # "4000 Total RENTAL INCOME" rolls up section "4000 RENTAL INCOME":
+            # assert the GL numbers agree before trusting the nesting.
+            g_sub, g_sec = gl_number(name), gl_number(cur_section)
+            if g_sub and g_sec and g_sub != g_sec:
+                nest_fails.append((name, cur_section))
+            kids = acct_by_section.get(cur_section, [])
+            if kids:
+                ssum = [sum(k[1][x] for k in kids) for x in range(len(mvals))]
+                if not all(abs(a - b) <= 0.05 for a, b in zip(ssum, mvals)):
+                    sub_fails.append((name, sum(ssum), sum(mvals),
+                                      [k[0] for k in kids]))
+            sec_subs.append((cur_section, name, mvals, side))
+            lines_out.append(Line("subtotal", name, mvals, cur_section, side))
+            lines_out[-1].values_annual = annual
+            continue
+
+        # ---- grand row ---------------------------------------------------
+        key = ("rev" if re.fullmatch(_GRAND_PATS_RESMAN_TR["rev"], name, re.I)
+               else "exp" if re.fullmatch(_GRAND_PATS_RESMAN_TR["exp"], name,
+                                          re.I)
+               else "noi" if re.fullmatch(_GRAND_PATS_RESMAN_TR["noi"], name,
+                                          re.I) else None)
+        lines_out.append(Line("subtotal", name, mvals, "", side))
+        lines_out[-1].values_annual = annual
+        if key:
+            grand[key] = mvals
+        if key == "rev":
+            side = "exp"          # everything after the revenue grand row
+
+    # ---- grand rows vs the section roll-ups beneath them ------------------
+    grand_fails = []
+
+    def _side_sum(sd):
+        picked = [s for s in sec_subs if s[3] == sd]
+        if not picked:
+            return None
+        return [sum(s[2][x] for s in picked) for x in range(len(months))]
+
+    for key, label, want in (("rev", "TOTAL INCOME", _side_sum("inc")),
+                             ("exp", "TOTAL EXPENSE", _side_sum("exp"))):
+        got = grand.get(key)
+        if got is None or want is None:
+            continue
+        if not all(abs(a - b) <= 0.05 for a, b in zip(got, want)):
+            grand_fails.append((label, sum(want), sum(got)))
+    if grand.get("noi") and grand.get("rev") and grand.get("exp"):
+        want = [a - b for a, b in zip(grand["rev"], grand["exp"])]
+        if not all(abs(a - b) <= 0.05
+                   for a, b in zip(grand["noi"], want)):
+            grand_fails.append(("NET OPERATING INCOME = TOTAL INCOME - "
+                                "TOTAL EXPENSE", sum(want),
+                                sum(grand["noi"])))
+
+    # ---- below-the-line: anything after the printed NOI --------------------
+    seen_noi = False
+    for ln in lines_out:
+        if seen_noi or BELOW_PAT.search(ln.section or ""):
+            ln.below = True
+        if ln.kind == "subtotal" and re.fullmatch(
+                _GRAND_PATS_RESMAN_TR["noi"], ln.name, re.I):
+            seen_noi = True
+
+    # ---- report -----------------------------------------------------------
+    print(f"  ResMan row check: {n_checked} row(s) vs the printed 'Adjusted "
+          f"Total' column" + (" - all tie." if not row_fails else
+                              f" - {len(row_fails)} MISMATCH."))
+    print(f"  ResMan section check: {len(sec_subs)} section roll-up row(s) vs "
+          f"their account detail, month by month"
+          + (" - all tie." if not sub_fails else
+             f" - {len(sub_fails)} MISMATCH."))
+    for nm, got, want, kids in sub_fails:
+        print(f"  SECTION-SUBTOTAL MISMATCH {nm}: detail beneath it sums to "
+              f"{got:,.2f} vs printed {want:,.2f} "
+              f"(variance {got - want:+,.2f}); children: {', '.join(kids)}")
+    for nm, sec in nest_fails:
+        print(f"  STRUCTURE MISMATCH: roll-up '{nm}' closes section '{sec}' "
+              f"but their GL numbers disagree.")
+    print(f"  ResMan grand check: TOTAL INCOME / TOTAL EXPENSE vs their "
+          f"section roll-ups and NOI vs income less expense, month by month"
+          + (" - all tie." if not grand_fails else
+             f" - {len(grand_fails)} MISMATCH."))
+    for lbl, want, got in grand_fails:
+        print(f"  GRAND MISMATCH {lbl}: detail {want:,.2f} vs printed "
+              f"{got:,.2f} (variance {want - got:+,.2f})")
+    if reimb:
+        print(f"  NOTE: {len(reimb)} revenue-numbered account(s) are booked "
+              f"inside an EXPENSE section as negative expense (the statement "
+              f"nets them against the cost). They are kept on the expense "
+              f"side - reclassifying them to Other Income would move money "
+              f"across the ledger:")
+        for nm, sec, tot in reimb:
+            print(f"    {nm}  [{sec}]  {tot:,.2f}")
+
+    if sub_fails or grand_fails or nest_fails:
+        if not trust_monthly:
+            sys.exit("ERROR: ResMan roll-up rows do not tie to the detail "
+                     "beneath them - aborting. (re-run with --trust-monthly "
+                     "to treat the monthly detail as source of truth)")
+        print("  --trust-monthly: monthly detail wins over the printed "
+              "roll-up rows.")
+
+    return prop, months, _xlsx_grand_finalize(
+        lines_out, row_fails, trust_monthly, _GRAND_PATS_RESMAN_TR)
+
+
 # Detection-based dispatch for xlsx T-12s (mirrors the rent-roll XLSX_PARSERS
 # convention). parse_t12_xlsx itself is the fallback owner/PM-prepared layout.
 T12_XLSX_PARSERS = [
+    (_is_resman_trailing_xlsx, parse_t12_resman_trailing_xlsx),
     (_is_appfolio_xlsx, parse_t12_appfolio_xlsx),
     (_is_onesite_xlsx, parse_t12_onesite_xlsx),
     (_is_yardi_xlsx, parse_t12_yardi_xlsx),

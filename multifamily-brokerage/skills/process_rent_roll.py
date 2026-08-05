@@ -3606,6 +3606,287 @@ class BuildiumRentRollParser(RentRollParser):
             "is an estimate (highlighted).")
 
 
+class AppFolioUnitTypeXlsxParser(RentRollParser):
+    """AppFolio 'Rent Roll' XLSX export carrying a Unit Type / Sqft /
+    Recurring Charges column set (Eclipse of White Rock, Ci Mgmt, 12/31/2025).
+
+    Same AppFolio report-parameter preamble as `AppFolioXlsxParser`
+    ("Exported On:" / "Properties:" / "Units:" / "As of:" / "Include
+    Non-Revenue Units:"), but a different column set entirely:
+
+        Unit | Unit Type | BD/BA | Tenant | Sqft | Market Rent |
+        Monthly Rent / SF | Rent | Recurring Charges | Deposit
+
+    There is NO Status column and no lease dates: occupancy comes from the
+    Tenant cell ("Vacant Unit"), and Lease Start/End, Move-In/Out and MTM stay
+    blank rather than being inferred. Floor plan is the Unit Type code
+    (A1/B1/B2-T/C1) - which does NOT encode bed/bath (B1 is a 2/1) - so
+    bed/bath is taken verbatim from the BD/BA column and marked explicit,
+    never derived from the code. "Recurring Charges" is a lump of the
+    non-rent recurring billings with no per-charge detail (it EXCLUDES the
+    rent: the printed totals row carries Rent and Recurring Charges in
+    separate columns) and is booked as one charge -> Other Income.
+
+    The report footer prints three tie-out blocks: a "<N> Units" totals row, a
+    repeated "Total <N> Units" row, and an Occupied/Vacant/Total occupancy
+    table. When "Include Non-Revenue Units: No" the occupancy table still
+    counts the non-revenue units the detail omits, so the two disagree by
+    exactly that many doors - reconciled explicitly rather than ignored.
+    """
+    name = "AppFolio-xlsx (Unit Type)"
+    asof_found = True
+
+    HEADER_KEYS = ("unit", "unit type", "bd/ba", "tenant", "sqft",
+                   "market rent", "rent", "recurring charges")
+
+    def __init__(self):
+        self.flags = []
+        self.zero_ratio_units = []
+
+    # -- helpers -------------------------------------------------------------
+
+    @staticmethod
+    def _num(v):
+        if v is None:
+            return None
+        if isinstance(v, str):
+            s = v.strip().replace(",", "").replace("$", "")
+            if not s:
+                return None
+            neg = s.startswith("(") and s.endswith(")")
+            try:
+                f = float(s.strip("()"))
+            except ValueError:
+                return None
+            return -f if neg else f
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _bb(v):
+        """'2/1.00' -> (2, 1); '1/1.00' -> (1, 1); '2/1.50' -> (2, 1.5)."""
+        m = re.match(r"^\s*(\d+(?:\.\d+)?)\s*/\s*(\d+(?:\.\d+)?)",
+                     str(v or ""))
+        if not m:
+            return None, None
+
+        def trim(x):
+            f = float(x)
+            return int(f) if f == int(f) else f
+        return trim(m.group(1)), trim(m.group(2))
+
+    @classmethod
+    def _find_header(cls, rows):
+        for i, r in enumerate(rows[:30]):
+            vals = [re.sub(r"\s+", " ", str(v or "")).strip().lower()
+                    for v in r]
+            if all(k in vals for k in cls.HEADER_KEYS):
+                return i, {v: j for j, v in enumerate(vals) if v}
+        return None, {}
+
+    @staticmethod
+    def detect_xlsx(path):
+        try:
+            from openpyxl import load_workbook as _lw
+            wb = _lw(path, read_only=True, data_only=True)
+            ws = wb[wb.sheetnames[0]]
+            rows = [list(r) for r in ws.iter_rows(values_only=True,
+                                                  max_row=30)]
+        except Exception:
+            return False
+        i, _ = AppFolioUnitTypeXlsxParser._find_header(rows)
+        return i is not None
+
+    # -- parse ---------------------------------------------------------------
+
+    def parse(self, path):
+        from openpyxl import load_workbook as _lw
+        wb = _lw(path, read_only=True, data_only=True)
+        ws = wb[wb.sheetnames[0]]
+        rows = [list(r) for r in ws.iter_rows(values_only=True)]
+
+        hdr_i, cols = self._find_header(rows)
+        if hdr_i is None:
+            sys.exit("ERROR: AppFolio Unit Type header row not found.")
+
+        def cell(r, key):
+            j = cols.get(key)
+            return r[j] if j is not None and j < len(r) else None
+
+        asof, prop, nonrev_filter = None, "", None
+        for r in rows[:hdr_i]:
+            a = re.sub(r"\s+", " ", str(r[0] or "")).strip() if r else ""
+            m = re.match(r"As of:\s*(\d{1,2}/\d{1,2}/\d{4})", a, re.I)
+            if m:
+                asof = datetime.strptime(m.group(1), "%m/%d/%Y").date()
+            m = re.match(r"Properties?:\s*(.+)$", a, re.I)
+            if m:
+                # "Eclipse Of White Rock - 2728 N. Buckner Blvd Dallas, TX"
+                # -> split on the dash that introduces the street address
+                prop = re.split(r"\s+-\s+(?=\d)", m.group(1).strip(), 1)[0]
+            m = re.match(r"Include Non-Revenue Units:\s*(\w+)", a, re.I)
+            if m:
+                nonrev_filter = m.group(1).strip().lower()
+
+        units, checks = [], {}
+        totals_rows, occ_block = [], {}
+        for r in rows[hdr_i + 1:]:
+            unit = re.sub(r"\s+", " ", str(cell(r, "unit") or "")).strip()
+
+            # occupancy table at the foot: labels sit under the Sqft column
+            lbl = re.sub(r"\s+", " ",
+                         str(cell(r, "sqft") or "")).strip().lower()
+            if not unit and lbl in ("occupied", "vacant", "total"):
+                occ_block[lbl] = self._num(cell(r, "market rent"))
+                continue
+            if not unit:
+                continue
+
+            mt = re.match(r"^(?:total\s+)?(\d+)\s+units?$", unit, re.I)
+            if mt:
+                totals_rows.append((int(mt.group(1)), r))
+                continue
+            if unit.lower() == "unit":              # repeated header row
+                continue
+            if cell(r, "bd/ba") in (None, ""):      # property group header
+                continue
+
+            tenant = re.sub(r"\s+", " ", str(cell(r, "tenant") or "")).strip()
+            vacant = (not tenant) or bool(
+                re.fullmatch(r"vacant(\s+unit)?", tenant, re.I))
+            bed, bath = self._bb(cell(r, "bd/ba"))
+            u = UnitRecord(
+                unit=unit,
+                floor_plan=re.sub(r"\s+", " ",
+                                  str(cell(r, "unit type") or "")).strip(),
+                sqft=self._num(cell(r, "sqft")),
+                apt_status="VU" if vacant else "OC",
+                market_rent=self._num(cell(r, "market rent")),
+                bed_explicit=bed, bath_explicit=bath, bed_bath_explicit=True)
+            if not vacant:
+                charges = []
+                rent = self._num(cell(r, "rent"))
+                if rent is not None:
+                    charges.append(("RENT", rent, False))
+                rec = self._num(cell(r, "recurring charges"))
+                if rec:
+                    charges.append(("RECURRING CHARGES", rec, False))
+                u.residents.append(Resident(
+                    name=tenant, status="C", charges=charges,
+                    deposit=self._num(cell(r, "deposit"))))
+                # AppFolio prints a per-unit Monthly Rent / SF; a 0 on a unit
+                # that DOES carry rent is a source glitch, and the report's own
+                # grand ratio excludes exactly those units - record them so the
+                # ratio check below is computed the same way the report is.
+                ratio = self._num(cell(r, "monthly rent / sf"))
+                if rent and not ratio:
+                    self.zero_ratio_units.append(unit)
+            units.append(u)
+
+        if not totals_rows:
+            sys.exit("ERROR: AppFolio Unit Type export has no '<N> Units' "
+                     "totals row to reconcile against.")
+        # every printed totals row must agree with the others before any of
+        # them is trusted as a tie-out target
+        base_n, base_r = totals_rows[0]
+        for n, r in totals_rows[1:]:
+            same = (n == base_n and all(
+                (self._num(cell(r, k)) or 0) == (self._num(cell(base_r, k)) or 0)
+                for k in ("sqft", "market rent", "rent", "recurring charges",
+                          "deposit")))
+            if not same:
+                self.flags.append(
+                    "the report's repeated totals rows disagree with each "
+                    "other - the first one was used as the tie-out target")
+        checks["unit_count"] = base_n
+        checks["total_sqft"] = self._num(cell(base_r, "sqft"))
+        checks["total_market_rent"] = self._num(cell(base_r, "market rent"))
+        checks["total_contract_rent"] = self._num(cell(base_r, "rent"))
+        checks["total_deposits"] = self._num(cell(base_r, "deposit"))
+        rec_total = self._num(cell(base_r, "recurring charges"))
+        rent_total = checks["total_contract_rent"]
+        if rec_total is not None and rent_total is not None:
+            checks["current_lease_charges"] = rent_total + rec_total
+
+        extra = []
+        if rec_total is not None:
+            extra.append((
+                "Recurring charges (Other Income)",
+                lambda us: sum(r.other_income or 0 for u in us
+                               for r in u.residents
+                               if r.status.upper() in ("C", "N")),
+                rec_total, 0.01))
+
+        # printed grand "Monthly Rent / SF": rent / sq ft over the occupied
+        # units the report itself included (see zero_ratio_units above)
+        ratio_total = self._num(cell(base_r, "monthly rent / sf"))
+        if ratio_total is not None:
+            skip = set(self.zero_ratio_units)
+
+            def _ratio(us):
+                sel = [u for u in us if not u.is_vacant and u.unit not in skip]
+                sf = sum(u.sqft or 0 for u in sel)
+                rent = sum(u.primary.rent_charge or 0 for u in sel if u.primary)
+                return rent / sf if sf else 0.0
+            extra.append(("Monthly Rent / SF (occupied)", _ratio,
+                          ratio_total, 0.000001))
+
+        # ---- occupancy table vs the detail ----------------------------------
+        # With "Include Non-Revenue Units: No" the detail omits non-revenue
+        # units but the occupancy table still counts them. Derive that count
+        # from the report's own two numbers and check that it explains the
+        # WHOLE difference - occupied and vacant both have to land.
+        blk_occ = occ_block.get("occupied")
+        blk_vac = occ_block.get("vacant")
+        blk_tot = occ_block.get("total")
+        if blk_tot is not None and blk_occ is not None and blk_vac is not None:
+            nonrev = int(round(blk_tot - base_n))
+            checks["vacant_count"] = blk_vac
+            extra.append(("Occupied units + non-revenue units the detail "
+                          f"excludes ({nonrev})",
+                          lambda us, k=nonrev: sum(
+                              1 for u in us if not u.is_vacant) + k,
+                          blk_occ, 0.5))
+            extra.append(("Occupancy table Occupied + Vacant",
+                          lambda us, o=blk_occ, v=blk_vac: o + v,
+                          blk_tot, 0.5))
+            if nonrev:
+                self.flags.append(
+                    f"the report was run with 'Include Non-Revenue Units: "
+                    f"{nonrev_filter or 'No'}', so its detail lists {base_n} "
+                    f"revenue units while its occupancy table counts "
+                    f"{int(blk_tot)} doors ({int(blk_occ)} occupied / "
+                    f"{int(blk_vac)} vacant). The {nonrev} missing door(s) "
+                    f"are occupied non-revenue unit(s) (model / office / "
+                    f"employee) with no unit number, rent or square footage "
+                    f"printed anywhere in the file - this workbook therefore "
+                    f"carries the {base_n} revenue units only, and none of "
+                    f"the missing unit's data is invented")
+        if self.zero_ratio_units:
+            self.flags.append(
+                "the report prints a $0.00 Monthly Rent / SF for "
+                + ", ".join(self.zero_ratio_units)
+                + " despite a rent being charged (a source glitch); the rent, "
+                  "sq ft and market rent for those units are carried through "
+                  "unchanged and only the report's own grand ratio excludes "
+                  "them")
+        if extra:
+            checks["extra_checks"] = extra
+        return prop, asof, units, checks
+
+    def source_note(self, asof):
+        return (f"Generated from {self.name} rent roll {self.source_kind} "
+                f"({asof.strftime('%m/%d/%Y') if asof else 'unknown date'}). "
+                "Contractual Rent = the Rent column; Other Income = the "
+                "Recurring Charges column (a lump - the export carries no "
+                "per-charge detail). Bed/Bath from the BD/BA column, Net Sf "
+                "and Market Rent from the report. The export prints no lease "
+                "dates, move-in/out dates or notice status, so those columns "
+                "are intentionally blank.")
+
+
 # Detection order matters. OneSite first (its detect() keys on the report's
 # own product banner + title). ResManSummary before ResMan: the full-roll
 # ResMan detect() ('ResMan' + 'Rent Roll') also matches a Rent Roll Summary,
@@ -3616,7 +3897,12 @@ class BuildiumRentRollParser(RentRollParser):
 # loosest of the three, so it only claims a PDF nothing else recognises.
 PARSERS = [BuildiumRentRollParser, OneSiteRentsParser, ResManSummaryParser,
            ResManParser, SSI410Parser, OwnerSheetPdfParser]
-XLSX_PARSERS = [AppFolioXlsxParser, YardiRentRollXlsxParser]
+# AppFolioUnitTypeXlsxParser first: it demands the full Unit Type / Sqft /
+# Recurring Charges column set, which the Status-column AppFolio export does
+# not have, so it cannot steal it (and AppFolioXlsxParser's own detect needs a
+# 'status' column this layout does not print - checked both ways).
+XLSX_PARSERS = [AppFolioUnitTypeXlsxParser, AppFolioXlsxParser,
+                YardiRentRollXlsxParser]
 
 
 
