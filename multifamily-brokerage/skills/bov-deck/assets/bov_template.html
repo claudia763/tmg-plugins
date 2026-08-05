@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+@page { size: 1700px 1080px; margin: 0; }
+* { margin:0; padding:0; box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+:root { --navy:#1B3E6F; --navy2:#16345E; --gold:#FDB714; --paleGold:#FDEFD2; --ink:#333B45; --grey:#F0F2F5; }
+body { font-family:'Carlito', Arial, sans-serif; color:var(--ink); }
+.page { width:1700px; height:1080px; position:relative; overflow:hidden; page-break-after:always; background:#fff; }
+.page:last-child { page-break-after:auto; }
+
+/* right gold blade */
+.blade { position:absolute; right:0; top:0; bottom:0; width:72px; background:var(--gold);
+  clip-path: polygon(30% 0, 100% 0, 100% 100%, 30% 100%, 0 78%, 30% 56%); }
+.blade2 { position:absolute; right:0; top:0; bottom:0; width:60px; background:var(--gold); }
+.pgnum { position:absolute; right:18px; bottom:22px; background:var(--gold); color:var(--navy);
+  font-weight:700; font-size:22px; padding:4px 12px; z-index:9; }
+
+/* header band */
+.hdr { position:absolute; top:0; left:0; right:0; height:150px; }
+.hdr h1 { position:absolute; left:58px; top:48px; font-size:46px; font-weight:800; color:var(--navy); letter-spacing:-0.5px; }
+.hdr .sub { position:absolute; left:58px; top:104px; font-size:30px; font-weight:700; color:var(--navy); }
+.hdr .rule { position:absolute; left:0; right:0; top:132px; height:5px; background:#D9DDE3; }
+.hdr .logobox { position:absolute; left:740px; top:0px; width:150px; height:132px; background:#C7CBD1;
+  clip-path:polygon(0 12%, 50% 0, 100% 12%, 100% 100%, 0 100%); display:flex; align-items:center; justify-content:center; }
+.hdr .logobox img { width:100px; }
+.hdr .site { position:absolute; right:110px; top:48px; text-align:right; font-size:24px; color:#555; line-height:1.35; }
+
+/* placeholder photo frame */
+.ph { background:linear-gradient(160deg,#2A4E82 0%, #1B3E6F 55%, #142F55 100%); position:relative;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; border:3px dashed rgba(253,183,20,.75); }
+.ph svg { opacity:.35; }
+.ph .lab { margin-top:18px; color:#FFF; opacity:.85; font-size:24px; font-weight:700; letter-spacing:2px; text-transform:uppercase; }
+.ph .lab2 { color:var(--gold); font-size:18px; letter-spacing:1px; margin-top:4px; }
+
+/* tables */
+table.t { border-collapse:collapse; width:100%; font-size:24px; }
+table.t th { background:var(--navy); color:#fff; font-weight:700; text-align:left; padding:12px 16px; }
+table.t td { padding:11px 16px; border-bottom:1px solid #E2E5EA; }
+table.t tr:nth-child(even) td { background:#F1F2F4; }
+table.t tr.hl td { background:var(--gold); font-weight:800; color:#1B2430; border-bottom:none; }
+table.t tr.subj td { background:#FFF3D6; font-weight:800; }
+table.t td.r, table.t th.r { text-align:right; }
+
+.gband { background:var(--paleGold); padding:16px 22px; font-size:29px; font-weight:600; color:var(--navy); margin-bottom:16px; }
+h3.sec { font-size:30px; font-weight:800; color:var(--navy); margin-bottom:12px; }
+p.body, li.body { font-size:24.5px; line-height:1.5; color:#3A424D; }
+ul.blt { margin-left:30px; }
+ul.blt li { font-size:24px; line-height:1.45; margin-bottom:12px; color:#3A424D; }
+ul.blt li::marker { color:var(--gold); font-weight:800; }
+.circle { width:250px; height:250px; border-radius:50%; background:var(--navy); color:#fff; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; text-align:center; border:6px solid #fff; box-shadow:0 4px 18px rgba(0,0,0,.25); }
+</style></head><body>
+
+<!-- ================= PAGE 1 : COVER ================= -->
+<div class="page" style="background:var(--navy2);">
+  <div class="ph" style="position:absolute; inset:0; border:none;">
+    <svg width="820" height="360" viewBox="0 0 820 360" fill="none">
+      <g fill="#FFFFFF"><rect x="20" y="140" width="240" height="200" rx="4"/><rect x="290" y="90" width="240" height="250" rx="4"/><rect x="560" y="150" width="240" height="190" rx="4"/>
+      <g fill="#1B3E6F"><rect x="45" y="165" width="40" height="34"/><rect x="120" y="165" width="40" height="34"/><rect x="195" y="165" width="40" height="34"/><rect x="45" y="230" width="40" height="34"/><rect x="120" y="230" width="40" height="34"/><rect x="195" y="230" width="40" height="34"/><rect x="315" y="115" width="40" height="34"/><rect x="390" y="115" width="40" height="34"/><rect x="465" y="115" width="40" height="34"/><rect x="315" y="180" width="40" height="34"/><rect x="390" y="180" width="40" height="34"/><rect x="465" y="180" width="40" height="34"/><rect x="315" y="245" width="40" height="34"/><rect x="390" y="245" width="40" height="34"/><rect x="465" y="245" width="40" height="34"/><rect x="585" y="175" width="40" height="34"/><rect x="660" y="175" width="40" height="34"/><rect x="735" y="175" width="40" height="34"/><rect x="585" y="240" width="40" height="34"/><rect x="660" y="240" width="40" height="34"/><rect x="735" y="240" width="40" height="34"/></g></g>
+    </svg>
+    <div class="lab">Property Photo Placeholder</div>
+    <div class="lab2">Replace with Aden Crest aerial / hero image</div>
+  </div>
+  <div style="position:absolute; left:0; top:0; bottom:0; width:520px; background:rgba(27,62,111,.68); clip-path:polygon(0 0,100% 0,100% 8%,88% 14%,88% 86%,100% 92%,100% 100%,0 100%);"></div>
+  <div style="position:absolute; left:452px; top:120px; bottom:120px; width:7px; background:var(--gold);"></div>
+  <img src="assets/tmg_logo_white.png" style="position:absolute; left:70px; top:450px; width:340px;">
+  <div style="position:absolute; left:72px; top:520px; color:#fff; font-size:24px; font-weight:700;">multifamilygrp.com</div>
+  <div style="position:absolute; right:90px; bottom:80px; text-align:right; color:#fff; text-shadow:0 2px 10px rgba(0,0,0,.45);">
+    <div style="font-size:34px; font-weight:700; letter-spacing:3px; color:var(--gold); text-transform:uppercase; margin-bottom:6px;">Broker Opinion of Value</div>
+    <div style="font-size:96px; font-weight:800; letter-spacing:-1px;">Aden Crest</div>
+    <div style="font-size:36px; margin-top:6px;">2200 Aden Road, Fort Worth, TX 76116</div>
+    <div style="font-size:32px; margin-top:10px;">Number of Units: <b>202</b> &nbsp;Year Built: <b>1978</b></div>
+    <div style="font-size:26px; margin-top:14px; color:#EAEFF7;">Confidential &nbsp;|&nbsp; Prepared for Ownership &nbsp;|&nbsp; July 13, 2026</div>
+  </div>
+</div>
+
+<!-- ================= PAGE 2 : ADVISORS ================= -->
+<div class="page">
+  <div style="position:absolute; left:0; top:0; bottom:0; width:1060px;">
+    <div style="position:absolute; left:0; top:0; width:100%; height:120px; background:var(--navy); clip-path:polygon(0 0,100% 0,92% 100%,0 100%);"></div>
+    <div class="ph" style="position:absolute; left:0; top:150px; right:60px; bottom:150px;">
+      <svg width="620" height="280" viewBox="0 0 820 360" fill="none"><g fill="#FFFFFF"><rect x="20" y="140" width="240" height="200" rx="4"/><rect x="290" y="90" width="240" height="250" rx="4"/><rect x="560" y="150" width="240" height="190" rx="4"/></g></svg>
+      <div class="lab">Property Photo Placeholder</div><div class="lab2">Aerial with skyline</div>
+    </div>
+    <div style="position:absolute; left:0; bottom:0; width:100%; height:120px; background:var(--navy); clip-path:polygon(0 0,92% 0,100% 100%,0 100%);"></div>
+  </div>
+  <div class="blade2"></div>
+  <div style="position:absolute; left:1120px; top:90px; width:470px;">
+    <img src="assets/tmg_logo_navy.png" style="width:400px; margin-bottom:36px;">
+    <div style="background:var(--gold); color:var(--navy); font-weight:800; font-size:32px; padding:12px 22px; display:inline-block; margin-bottom:34px;">Investment Advisors</div>
+    <div style="display:flex; gap:22px; margin-bottom:30px;"><img src="assets/hs_yonnic.png" style="width:120px; height:124px; object-fit:cover;">
+      <div><div style="font-size:26px; font-weight:800; color:#222;">Yonnic Land</div><div style="font-size:23px; font-style:italic; margin-bottom:8px;">Sr. Managing Director</div><div style="font-size:22px; line-height:1.35;">yonnic.land@multifamilygrp.com<br>c. 972.983.9051</div></div></div>
+    <div style="display:flex; gap:22px; margin-bottom:30px;"><img src="assets/hs_jon.png" style="width:120px; height:124px; object-fit:cover;">
+      <div><div style="font-size:26px; font-weight:800; color:#222;">Jon Krebbs</div><div style="font-size:23px; font-style:italic; margin-bottom:8px;">Managing Partner</div><div style="font-size:22px; line-height:1.35;">jon.krebbs@multifamilygrp.com<br>o. 972.379.9862</div></div></div>
+    <div style="display:flex; gap:22px; margin-bottom:30px;"><img src="assets/hs_paul.png" style="width:120px; height:124px; object-fit:cover;">
+      <div><div style="font-size:26px; font-weight:800; color:#222;">Paul Yazbeck</div><div style="font-size:23px; font-style:italic; margin-bottom:8px;">Managing Partner</div><div style="font-size:22px; line-height:1.35;">paul.yazbeck@multifamilygrp.com<br>c. 972.310.1032</div></div></div>
+    <div style="display:flex; gap:22px;"><img src="assets/hs_chase.png" style="width:120px; height:124px; object-fit:cover;">
+      <div><div style="font-size:26px; font-weight:800; color:#222;">Chase Davis</div><div style="font-size:23px; font-style:italic; margin-bottom:8px;">Chief Operating Officer</div><div style="font-size:22px; line-height:1.35;">chase.davis@multifamilygrp.com<br>o. 972.465.9533</div></div></div>
+  </div>
+  <div class="pgnum">2</div>
+</div>
+
+<!-- ================= PAGE 3 : VALUATION SUMMARY ================= -->
+<div class="page">
+  <div class="ph" style="position:absolute; inset:0;">
+    <svg width="700" height="300" viewBox="0 0 820 360"><g fill="#FFFFFF"><rect x="20" y="140" width="240" height="200" rx="4"/><rect x="290" y="90" width="240" height="250" rx="4"/><rect x="560" y="150" width="240" height="190" rx="4"/></g></svg>
+  </div>
+  <div class="blade"></div>
+  <!-- left navy card -->
+  <div style="position:absolute; left:84px; top:44px; width:640px; bottom:44px; background:var(--navy); padding:44px 46px; color:#fff;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+      <div style="font-size:58px; font-weight:800;">Summary</div>
+      <img src="assets/tmg_logo_white.png" style="width:150px;">
+    </div>
+    <div style="font-size:30px; font-weight:800; margin-bottom:2px;">Aden Crest</div>
+    <div style="font-size:26px; margin-bottom:26px;">2200 Aden Road, Fort Worth, TX 76116</div>
+    <div style="font-size:24px; font-weight:800; border-bottom:2px solid #fff; padding-bottom:6px; margin-bottom:10px;">General</div>
+    <table style="width:100%; font-size:23px; line-height:1.9; color:#fff;">
+      <tr><td style="width:46%;">Valuation Basis</td><td>Broker Opinion of Value</td></tr>
+      <tr><td>Submarket</td><td>Fort Worth &ndash; Westover Hills</td></tr>
+      <tr><td>Year Built</td><td>1978</td></tr>
+      <tr><td>Units</td><td>202</td></tr>
+      <tr><td>Average Unit Size</td><td>695 SF</td></tr>
+      <tr><td>Reported Occupancy</td><td>90% (22.8% economic vacancy)</td></tr>
+      <tr><td>In-Place Effective Rent</td><td>$963 / Unit ($1.39 / SF)</td></tr>
+      <tr><td>T-12 NOI</td><td>&ndash;$193,099</td></tr>
+      <tr><td>Opex (T-12)</td><td>$10,121 / Unit</td></tr>
+    </table>
+    <div style="font-size:24px; font-weight:800; border-bottom:2px solid #fff; padding-bottom:6px; margin:22px 0 10px;">Profile</div>
+    <div style="font-size:23px; line-height:1.5;">Turnaround and operational-rightsizing opportunity with substantial reversion upside &mdash; not a stabilized, cash-flowing asset. Value is driven by expense normalization, RUBS implementation, and a low going-in basis.</div>
+  </div>
+  <!-- right metrics card -->
+  <div style="position:absolute; right:120px; top:44px; width:800px; bottom:44px; background:#fff; padding:38px 42px; box-shadow:0 6px 24px rgba(0,0,0,.3);">
+    <div style="font-size:40px; font-weight:800; color:var(--navy); margin-bottom:4px;">Recommended Valuation</div>
+    <div style="font-size:72px; font-weight:800; color:var(--navy); line-height:1.05;">$10,100,000</div>
+    <div style="font-size:30px; font-weight:700; color:#8A6100; margin:4px 0 18px;">$50,000 / Unit &nbsp;&bull;&nbsp; Range: $9,600,000 &ndash; $10,610,000</div>
+    <table class="t" style="font-size:23.5px;">
+      <tr><td>Price Per Unit</td><td class="r">$50,000&nbsp; ($47,500 &ndash; $52,500)</td></tr>
+      <tr><td>Price Per SF</td><td class="r">$72&nbsp; ($68 &ndash; $76)</td></tr>
+      <tr><td>T-12 Cap Rate (In-Place)</td><td class="r">&ndash;2.61%</td></tr>
+      <tr><td>T-3 Cap Rate (Normalized Expenses)</td><td class="r">4.01%</td></tr>
+      <tr><td>Pro Forma Cap Rate (Stabilized)</td><td class="r">8.98%</td></tr>
+      <tr><td>Acquisition Financing / Rate</td><td class="r">$7,575,000 @ 8.00% (New Origination)</td></tr>
+      <tr><td>LTV</td><td class="r">75.00%</td></tr>
+      <tr><td>Equity Requirement (incl. value-add &amp; fees)</td><td class="r">~$4,115,750</td></tr>
+      <tr><td>Projected IRR / Equity Multiple</td><td class="r">24.35% / 2.65x</td></tr>
+      <tr><td>Avg. Cash-on-Cash</td><td class="r">12.02%</td></tr>
+    </table>
+  </div>
+  <div class="pgnum">3</div>
+</div>
+
+<!-- ================= PAGE 4 : VALUATION HIGHLIGHTS ================= -->
+<div class="page">
+  <div class="hdr"><h1>Valuation Strategy</h1><div class="rule"></div>
+    <div class="logobox"><img src="assets/tmg_logo_white.png"></div>
+    <div class="site">multifamilygrp.com<br>Aden Crest | Fort Worth, TX</div></div>
+  <div class="blade"></div>
+  <div style="position:absolute; left:58px; top:180px; width:760px;">
+    <p class="body" style="font-weight:700; font-style:italic; margin-bottom:6px;">Summary:</p>
+    <p class="body" style="margin-bottom:18px;">Aden Crest is a 202-unit, 1978-vintage garden community in Fort Worth&rsquo;s Westover Hills submarket. Based on in-place operations, current submarket conditions, and comparable sale and agency-loan data, we recommend positioning the asset at a valuation of <b>$10,100,000 ($50,000/unit)</b>, within a defensible range of $9,600,000 to $10,610,000. This is a turnaround and operational-rightsizing story with substantial reversion upside &mdash; and the marketing strategy should reflect that reality candidly.</p>
+    <p class="body" style="margin-bottom:18px;">The property is running at a trailing loss (T-12 NOI of approximately <b>&ndash;$193,099</b>, a &ndash;2.61% in-place cap rate), driven by ~23% economic vacancy inflated by employee-occupied units, a severe outlier expense load, and a softening submarket rent environment. The value proposition to buyers is operational normalization, expense rightsizing, RUBS implementation, and a low going-in basis &mdash; not in-place income.</p>
+    <p class="body">The recommended valuation reflects an approximate <b>48% discount</b> to the $96,574/unit indicated by adjusted sale comparables &mdash; a function of negative in-place cash flow, expensive new-origination debt, and abundant competing distressed inventory across DFW. It is operational and market-driven, not a reflection of the underlying real estate. A $15.0M ask would not generate credible offers and would risk stigmatizing the listing.</p>
+  </div>
+  <div style="position:absolute; left:880px; top:165px; width:700px;">
+    <div style="font-size:78px; font-weight:800; color:var(--navy); line-height:1.02; margin-bottom:26px;">Valuation<br>Highlights</div>
+    <div class="gband">Recommended Valuation: $10.1MM &mdash; $50,000 / Unit</div>
+    <div class="gband">~48% Discount to Adjusted Sale Comps ($96,574 / Unit)</div>
+    <div class="gband">$709K+ / Year of Buyer-Identifiable Expense Savings</div>
+    <div class="gband">8.98% Pro Forma Cap Rate on Stabilized Operations</div>
+    <div class="gband">~$189K / Year of Untapped RUBS Billbacks</div>
+    <div class="gband">24.35% Projected IRR &nbsp;|&nbsp; 2.65x Equity Multiple</div>
+    <div class="gband">Target Buyer: Cash-Heavy Value-Add / Turnaround Operator</div>
+  </div>
+  <div class="pgnum">4</div>
+</div>
+
+<!-- ================= PAGE 5 : RENTAL ANALYSIS ================= -->
+<div class="page">
+  <div class="hdr"><h1>Rental Analysis</h1><div class="sub" style="top:104px; font-size:28px;">Westover Hills Market Context</div><div class="rule" style="top:140px;"></div>
+    <div class="logobox"><img src="assets/tmg_logo_white.png"></div>
+    <div class="site">multifamilygrp.com<br>Aden Crest | Fort Worth, TX</div></div>
+  <div class="blade"></div>
+  <div style="position:absolute; left:58px; top:180px; width:830px;">
+    <ul class="blt">
+      <li>Per Yardi Matrix (June 2026), Westover Hills posted <b>92.4% occupancy</b> and just <b>0.8% year-over-year rent growth</b>; average rents ($1,271) are expected to remain essentially flat through year-end 2026.</li>
+      <li>Yardi&rsquo;s forecast shows submarket rents turning <b>negative through 2027 (&ndash;1.4% to &ndash;3.9% YoY)</b>, not recovering to the prior peak until roughly 2029&ndash;2030 &mdash; a genuine near-term rent headwind we recommend disclosing proactively.</li>
+      <li>The 333-unit <b>Regency at Ridgmar</b> redevelopment delivers February 2027 (~17.3% of projected submarket inventory growth) &mdash; a near-term absorption headwind.</li>
+      <li>Longer-term, this is a mature, value-oriented Renter-by-Necessity submarket with limited forward supply beyond that single project, supporting a recovery thesis for a patient value-add operator past 2029.</li>
+      <li>Subject in-place effective rent of <b>$963/unit</b> sits ~$186 (16%) below the $1,149 comp average &mdash; but at <b>$1.39/SF vs. the $1.22 comp average</b>, the gap is an occupancy and collections problem, not a rent-ceiling problem.</li>
+      <li>Loss to lease of 9.1% (~$233,041) burns off as units are renovated and re-leased. Comps support pro forma rents of ~$955&ndash;$1,487, requiring ~$7,500/unit of funded interior renovation.</li>
+    </ul>
+  </div>
+  <div style="position:absolute; left:920px; top:180px; width:660px;">
+    <h3 class="sec">Rental Comparable Summary</h3>
+    <table class="t" style="font-size:21.5px;">
+      <tr><th>Property</th><th class="r">Units</th><th class="r">Built</th><th class="r">Occ.</th><th class="r">Avg SF</th><th class="r">Avg Rent</th><th class="r">$/SF</th></tr>
+      <tr><td>Renaissance Gardens</td><td class="r">214</td><td class="r">1958</td><td class="r">100%</td><td class="r">869</td><td class="r">$1,181</td><td class="r">$1.36</td></tr>
+      <tr><td>Park Villas</td><td class="r">282</td><td class="r">1969</td><td class="r">95%</td><td class="r">880</td><td class="r">$1,062</td><td class="r">$1.21</td></tr>
+      <tr><td>The Ridgmar Oaks</td><td class="r">60</td><td class="r">1964</td><td class="r">88%</td><td class="r">1,035</td><td class="r">$1,131</td><td class="r">$1.09</td></tr>
+      <tr><td>Place at Westover Hills</td><td class="r">273</td><td class="r">1965</td><td class="r">100%</td><td class="r">984</td><td class="r">$1,220</td><td class="r">$1.24</td></tr>
+      <tr class="hl"><td>Comp Average</td><td class="r">207</td><td class="r">1964</td><td class="r">96%</td><td class="r">942</td><td class="r">$1,149</td><td class="r">$1.22</td></tr>
+      <tr class="subj"><td>SUBJECT &mdash; Aden Crest</td><td class="r">202</td><td class="r">1978</td><td class="r">90%</td><td class="r">695</td><td class="r">$963</td><td class="r">$1.39</td></tr>
+    </table>
+    <div style="margin-top:26px; background:#FFF6E2; border-left:8px solid var(--gold); padding:20px 24px;">
+      <p class="body" style="font-size:22.5px;"><b>Retrading watch-item:</b> reported occupancy of 90% overstates economic performance &mdash; T-12 total economic loss runs <b>29.84%</b> (22.8% vacancy), inflated by employee-occupied / non-revenue units. We recommend preparing a unit-status roster and a collections &amp; occupancy action plan for the due-diligence package to pre-empt buyer stress-testing.</p>
+    </div>
+  </div>
+  <div class="pgnum">5</div>
+</div>
+
+<!-- ================= PAGE 6 : DEAL OPTIMIZATION ================= -->
+<div class="page">
+  <div class="hdr"><h1>Deal Optimization</h1><div class="sub" style="top:104px; font-size:28px;">Expense Normalization &amp; RUBS</div><div class="rule" style="top:140px;"></div>
+    <div class="logobox"><img src="assets/tmg_logo_white.png"></div>
+    <div class="site">multifamilygrp.com<br>Aden Crest | Fort Worth, TX</div></div>
+  <div class="blade"></div>
+  <div class="circle" style="position:absolute; left:718px; top:20px; z-index:5;">
+    <div style="font-size:22px; font-weight:700;">Pro Forma NOI</div>
+    <div style="font-size:44px; font-weight:800; color:var(--gold);">$906,764</div>
+    <div style="font-size:20px;">8.98% Cap Rate on<br>Recommended Valuation</div>
+  </div>
+  <div style="position:absolute; left:58px; top:290px; width:1000px;">
+    <table class="t" style="font-size:23px;">
+      <tr><th>Expense Category</th><th class="r">Current $/Unit</th><th class="r">Normalized $/Unit</th><th class="r">Annual Savings</th></tr>
+      <tr><td>Repairs &amp; Maintenance</td><td class="r">$2,258</td><td class="r">$650</td><td class="r">~$324,916</td></tr>
+      <tr><td>Payroll</td><td class="r">$1,783</td><td class="r">$1,300</td><td class="r">~$97,500</td></tr>
+      <tr><td>Management Fee (~13% of rev.)</td><td class="r">$1,201</td><td class="r">$401 (3.5%)</td><td class="r">~$161,766</td></tr>
+      <tr><td>Administrative</td><td class="r">$773</td><td class="r">$250</td><td class="r">~$105,567</td></tr>
+      <tr class="hl"><td>NET OPEX IMPROVEMENT</td><td class="r">$10,121 / unit</td><td class="r">$6,609 / unit</td><td class="r">~$709,574 / yr</td></tr>
+    </table>
+    <p class="body" style="margin-top:24px;">With no in-place cash flow and a thin (funded) renovation premium, <b>operational rightsizing is the primary value-creation lever</b>. The trailing expense load of $10,121/unit is a severe outlier; normalizing to comparable levels alone flips NOI from negative to strongly positive &mdash; with no rent growth beyond renovation assumed.</p>
+  </div>
+  <div style="position:absolute; left:1108px; top:290px; width:480px;">
+    <h3 class="sec">Buyer-Identifiable Levers</h3>
+    <ul class="blt" style="margin-left:26px;">
+      <li><b>Management fee</b> runs ~13% of revenue vs. a 3.5% market rate &mdash; ~$161,766/yr of savings on that line alone.</li>
+      <li><b>Payroll</b> is inflated by employee-occupied units; normalizing to $1,300/unit recovers ~$97,500/yr and converts employee units to market, lifting collected revenue.</li>
+      <li><b>R&amp;M</b> reflects deferred-maintenance catch-up; $650/unit is supportable post-renovation.</li>
+      <li><b>RUBS implementation:</b> comps support ~$189,072/yr of water and electric billbacks not currently captured.</li>
+    </ul>
+  </div>
+  <div class="pgnum">6</div>
+</div>
+
+<!-- ================= PAGE 7 : SALE COMPS ================= -->
+<div class="page">
+  <div class="hdr"><h1>Sale Comparable Analysis</h1><div class="sub" style="top:104px; font-size:28px;">Traditional Sale Comparables (Adjusted)</div><div class="rule" style="top:140px;"></div>
+    <div class="logobox"><img src="assets/tmg_logo_white.png"></div>
+    <div class="site">multifamilygrp.com<br>Aden Crest | Fort Worth, TX</div></div>
+  <div class="blade"></div>
+  <div style="position:absolute; left:58px; top:185px; width:1010px;">
+    <table class="t" style="font-size:23px;">
+      <tr><th>Property</th><th class="r">Units</th><th class="r">Built</th><th class="r">Sale Price</th><th class="r">Net Adj.</th><th class="r">Adj. $/Unit</th></tr>
+      <tr><td>Ridgmar Townhomes</td><td class="r">60</td><td class="r">1984</td><td class="r">$5,520,000</td><td class="r">&ndash;18.6%</td><td class="r">$74,911</td></tr>
+      <tr><td>Slate at Fort Worth</td><td class="r">121</td><td class="r">1969</td><td class="r">$12,000,000</td><td class="r">+5.3%</td><td class="r">$104,386</td></tr>
+      <tr><td>Sunset Heights</td><td class="r">90</td><td class="r">1970</td><td class="r">$9,800,000</td><td class="r">&ndash;5.6%</td><td class="r">$102,811</td></tr>
+      <tr><td>Falls &amp; Oak Village</td><td class="r">410</td><td class="r">1974</td><td class="r">$41,580,000</td><td class="r">&ndash;4.6%</td><td class="r">$96,767</td></tr>
+      <tr><td>Waverly Park</td><td class="r">278</td><td class="r">1984</td><td class="r">$31,000,000</td><td class="r">&ndash;6.7%</td><td class="r">$103,994</td></tr>
+      <tr class="hl"><td colspan="5">Comp-Indicated Value / Unit (Equal Weighting)</td><td class="r">$96,574</td></tr>
+      <tr class="subj"><td colspan="5">SUBJECT &mdash; Recommended Valuation / Unit (Operational Discount)</td><td class="r">$50,000</td></tr>
+    </table>
+    <p class="body" style="margin-top:26px;">Five DFW-area comps, equal-weighted after adjustments for vintage, unit size, and cap-rate drift, indicate <b>$96,574/unit (~$19.5M)</b>. The recommended valuation reflects an approximate <b>48% discount</b> attributable to negative in-place cash flow and operational distress &mdash; not real estate quality. Even the lowest adjusted comp (Ridgmar Townhomes at $74,911/unit) sits well above the recommended basis, underscoring how far in-place distress and competing inventory have pushed achievable pricing below stabilized-quality trades.</p>
+  </div>
+  <div style="position:absolute; left:1120px; top:185px; width:462px;">
+    <div style="background:var(--navy); color:#fff; padding:34px 32px;">
+      <div style="font-size:28px; font-weight:800; margin-bottom:16px; color:var(--gold);">Framing the Discount</div>
+      <p style="font-size:23px; line-height:1.5;">We recommend framing this spread explicitly as an <b>operational (not structural) discount</b> &mdash; the real estate is comparable to the peer set; only the in-place operations are not. That preserves a credible upside story for buyers while protecting ownership&rsquo;s credibility.</p>
+      <div style="margin-top:26px; border-top:2px solid rgba(255,255,255,.35); padding-top:20px; display:flex; justify-content:space-between;">
+        <div><div style="font-size:38px; font-weight:800; color:var(--gold);">$96,574</div><div style="font-size:20px;">Comp-Indicated / Unit</div></div>
+        <div style="text-align:right;"><div style="font-size:38px; font-weight:800; color:var(--gold);">$50,000</div><div style="font-size:20px;">Recommended / Unit</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="pgnum">7</div>
+</div>
+
+<!-- ================= PAGE 8 : AGENCY COMPS ================= -->
+<div class="page">
+  <div class="hdr"><h1>Sale Comparable Analysis</h1><div class="sub" style="top:104px; font-size:28px;">Agency Loan Comparables (Fannie / Freddie MBS)</div><div class="rule" style="top:140px;"></div>
+    <div class="logobox"><img src="assets/tmg_logo_white.png"></div>
+    <div class="site">multifamilygrp.com<br>Aden Crest | Fort Worth, TX</div></div>
+  <div class="blade"></div>
+  <div style="position:absolute; left:58px; top:185px; width:1080px;">
+    <table class="t" style="font-size:22.5px;">
+      <tr><th>Property</th><th class="r">Units</th><th class="r">Built</th><th class="r">Value/Unit</th><th class="r">Cap Rate</th><th>Address</th></tr>
+      <tr><td>Peppertree Acres</td><td class="r">148</td><td class="r">1983</td><td class="r">$57,799</td><td class="r">5.53%</td><td>6555 Sheridan Cir, Fort Worth</td></tr>
+      <tr><td>Millennium Dallas</td><td class="r">207</td><td class="r">1983</td><td class="r">$100,242</td><td class="r">6.14%</td><td>9180 Forest Ln, Dallas</td></tr>
+      <tr><td>Villas at La Risa</td><td class="r">208</td><td class="r">1968</td><td class="r">$100,962</td><td class="r">4.92%</td><td>12825 Jupiter Rd, Dallas</td></tr>
+      <tr><td>Rosa Vista</td><td class="r">103</td><td class="r">1968</td><td class="r">$106,796</td><td class="r">6.84%</td><td>3783 Legendary Ln, Dallas</td></tr>
+      <tr><td>Spanish Puerto</td><td class="r">121</td><td class="r">1964</td><td class="r">$115,702</td><td class="r">6.09%</td><td>7323 Ferguson Rd, Dallas</td></tr>
+      <tr class="hl"><td>DFW Agency Comp Average</td><td class="r">173</td><td class="r">1980</td><td class="r">$135,309</td><td class="r">5.82%</td><td>Dallas&ndash;Fort Worth Region</td></tr>
+      <tr class="subj"><td>SUBJECT &mdash; Aden Crest</td><td class="r">202</td><td class="r">1978</td><td class="r">$50,000</td><td class="r">8.98%*</td><td>2200 Aden Rd, Fort Worth</td></tr>
+    </table>
+    <p class="body" style="margin-top:16px; font-size:20px; font-style:italic; color:#666;">* Pro forma cap rate on normalized/stabilized NOI at the recommended valuation. Agency comps sourced from Fannie Mae / Freddie Mac disclosed MBS data (DFW region, 1963&ndash;1993 vintage, 0&ndash;500 units).</p>
+  </div>
+  <div style="position:absolute; left:58px; top:660px; width:1080px;">
+    <ul class="blt">
+      <li>The DFW agency comp average is <b>$135,309/unit at a 5.82% cap</b>; the subject&rsquo;s recommended basis of $50,000/unit at an 8.98% pro forma cap is a wide spread that represents the core buyer value-creation opportunity.</li>
+      <li>Even the lowest agency comp &mdash; Peppertree Acres in Fort Worth at $57,799/unit &mdash; prices above the subject, reflecting the volume of lender REO and low-priced inventory competing across DFW and the discount required to clear an asset with negative trailing income.</li>
+    </ul>
+  </div>
+  <div style="position:absolute; left:1190px; top:185px; width:392px; bottom:60px;" class="ph">
+    <svg width="300" height="160" viewBox="0 0 820 360"><g fill="#FFFFFF"><rect x="20" y="140" width="240" height="200" rx="4"/><rect x="290" y="90" width="240" height="250" rx="4"/><rect x="560" y="150" width="240" height="190" rx="4"/></g></svg>
+    <div class="lab" style="font-size:20px;">Photo Placeholder</div><div class="lab2" style="font-size:16px;">Exterior / streetscape</div>
+  </div>
+  <div class="pgnum">8</div>
+</div>
+
+<!-- ================= PAGE 9 : FINANCING ================= -->
+<div class="page">
+  <div class="hdr"><h1>Financing</h1><div class="sub" style="top:104px; font-size:28px;">A Constraint on Pricing, Not a Marketing Advantage</div><div class="rule" style="top:140px;"></div>
+    <div class="logobox"><img src="assets/tmg_logo_white.png"></div>
+    <div class="site">multifamilygrp.com<br>Aden Crest | Fort Worth, TX</div></div>
+  <div class="blade"></div>
+  <div style="position:absolute; left:58px; top:185px; width:830px;">
+    <p class="body" style="margin-bottom:20px;">Unlike a below-market assumable loan, financing here is a <b>constraint on pricing rather than a marketing advantage</b> &mdash; and we recommend underwriting it honestly. Any buyer must source new-origination debt into an asset with no in-place NOI to service it.</p>
+    <ul class="blt">
+      <li>With negative trailing NOI, going-in debt service must be funded from reserves and equity until stabilization. Buyers will price this <b>negative-leverage carry</b> directly into their bids.</li>
+      <li>DFW is saturated with lender-owned (REO) and distressed inventory offered directly by lenders, frequently with <b>0% to 10% down and seller/lender financing</b> &mdash; a lower effective cost of capital than a buyer can obtain here, which caps what the market will pay.</li>
+      <li>The projected 24.35% IRR and 2.65x equity multiple are achievable only on successful execution of the operational turnaround and renovation.</li>
+      <li>Given negative in-place leverage and a capital-intensive plan, the buyer pool is a <b>well-capitalized value-add / turnaround operator</b> &mdash; not a yield-driven or 1031 buyer seeking day-one cash flow.</li>
+    </ul>
+  </div>
+  <div style="position:absolute; left:940px; top:185px; width:640px;">
+    <h3 class="sec">Indicative Acquisition Financing</h3>
+    <table class="t" style="font-size:23.5px;">
+      <tr><td>Loan Amount</td><td class="r">$7,575,000</td></tr>
+      <tr><td>LTV</td><td class="r">75.00%</td></tr>
+      <tr><td>Interest Rate</td><td class="r">8.00% (New Origination)</td></tr>
+      <tr><td>Interest-Only Period</td><td class="r">3 Years</td></tr>
+      <tr><td>Loan Constant (After IO)</td><td class="r">8.81% (~$55,583 / month)</td></tr>
+      <tr><td>Value-Add Renovation Budget</td><td class="r">~$1,515,000</td></tr>
+      <tr class="hl"><td>Total Capitalization</td><td class="r">~$11,615,000</td></tr>
+      <tr class="subj"><td>Equity Requirement</td><td class="r">~$4,115,750</td></tr>
+    </table>
+    <div style="margin-top:28px; display:flex; gap:20px;">
+      <div style="flex:1; background:var(--navy); color:#fff; text-align:center; padding:24px 10px;"><div style="font-size:40px; font-weight:800; color:var(--gold);">24.35%</div><div style="font-size:21px;">Projected IRR</div></div>
+      <div style="flex:1; background:var(--navy); color:#fff; text-align:center; padding:24px 10px;"><div style="font-size:40px; font-weight:800; color:var(--gold);">2.65x</div><div style="font-size:21px;">Equity Multiple</div></div>
+      <div style="flex:1; background:var(--navy); color:#fff; text-align:center; padding:24px 10px;"><div style="font-size:40px; font-weight:800; color:var(--gold);">12.02%</div><div style="font-size:21px;">Avg. Cash-on-Cash</div></div>
+    </div>
+  </div>
+  <div class="pgnum">9</div>
+</div>
+
+<!-- ================= PAGE 10 : RECOMMENDATION ================= -->
+<div class="page">
+  <div class="hdr"><h1>Recommendation</h1><div class="rule"></div>
+    <div class="logobox"><img src="assets/tmg_logo_white.png"></div>
+    <div class="site">multifamilygrp.com<br>Aden Crest | Fort Worth, TX</div></div>
+  <div class="blade"></div>
+  <div style="position:absolute; left:58px; top:180px; width:820px;">
+    <p class="body" style="margin-bottom:18px;">We recommend proceeding to market at a valuation of <b>$9,600,000 to $10,610,000 ($47,500 &ndash; $52,500/unit)</b> &mdash; calibrated to negative in-place cash flow, expensive new-origination debt, soft and declining submarket rents, and heavy competing distressed inventory in DFW. Ownership&rsquo;s $15.0M expectation is not supportable in the current environment, and pursuing it would deter qualified buyers.</p>
+    <p class="body" style="margin-bottom:14px;">The offering should be centered on three pillars:</p>
+    <div style="display:flex; gap:18px; margin-bottom:24px;">
+      <div style="flex:1; background:var(--paleGold); padding:20px 20px;"><div style="font-size:44px; font-weight:800; color:var(--navy);">1</div><p class="body" style="font-size:21.5px;">A low going-in basis far below sale comps and replacement cost</p></div>
+      <div style="flex:1; background:var(--paleGold); padding:20px 20px;"><div style="font-size:44px; font-weight:800; color:var(--navy);">2</div><p class="body" style="font-size:21.5px;">Dramatic, buyer-identifiable operational upside from expense normalization and RUBS</p></div>
+      <div style="flex:1; background:var(--paleGold); padding:20px 20px;"><div style="font-size:44px; font-weight:800; color:var(--navy);">3</div><p class="body" style="font-size:21.5px;">A long-term submarket recovery thesis for a patient, well-capitalized value-add operator</p></div>
+    </div>
+    <h3 class="sec">Key Considerations / Pricing Risk Factors</h3>
+    <ul class="blt" style="margin-left:26px;">
+      <li><b>Declining rents through 2027</b> plus the Regency at Ridgmar delivery &mdash; disclose the Yardi forecast proactively to control the narrative.</li>
+      <li><b>Negative trailing NOI and ~23% economic loss</b> inflated by employee units is the top retrading lever &mdash; provide a unit-status roster and collections/occupancy action plan in the DD package.</li>
+      <li><b>Expensive 8% new-origination debt</b> with no in-place coverage, against cheaper lender-financed alternatives &mdash; market to cash-heavy, renovation-capable buyers with realistic expectations.</li>
+    </ul>
+  </div>
+  <div style="position:absolute; left:940px; top:180px; width:645px;">
+    <div style="background:var(--navy); padding:40px 38px; color:#fff;">
+      <div style="text-align:center; border-bottom:2px solid rgba(255,255,255,.3); padding-bottom:24px; margin-bottom:24px;">
+        <div style="font-size:24px; font-weight:700; color:var(--gold); letter-spacing:1px;">RECOMMENDED VALUATION RANGE</div>
+        <div style="font-size:56px; font-weight:800;">$9.6M &ndash; $10.61M</div>
+        <div style="font-size:24px;">$47,500 &ndash; $52,500 / Unit</div>
+      </div>
+      <div style="text-align:center; border-bottom:2px solid rgba(255,255,255,.3); padding-bottom:24px; margin-bottom:24px;">
+        <div style="font-size:24px; font-weight:700; color:var(--gold); letter-spacing:1px;">RETURN PROFILE (MID-POINT)</div>
+        <div style="font-size:44px; font-weight:800;">24.35% IRR</div>
+        <div style="font-size:24px;">2.65x Equity Multiple</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:24px; font-weight:700; color:var(--gold); letter-spacing:1px;">RECOMMENDED TARGET BUYER</div>
+        <div style="font-size:34px; font-weight:800; line-height:1.2; margin-top:6px;">Value-Add / Turnaround Operator</div>
+        <div style="font-size:24px;">Cash-Heavy, Renovation-Capable</div>
+      </div>
+    </div>
+  </div>
+  <div class="pgnum">10</div>
+</div>
+
+<!-- ================= PAGE 11 : BACK COVER ================= -->
+<div class="page" style="background:var(--navy2);">
+  <div class="ph" style="position:absolute; inset:0; border:none; opacity:.5;">
+    <svg width="820" height="360" viewBox="0 0 820 360"><g fill="#FFFFFF"><rect x="20" y="140" width="240" height="200" rx="4"/><rect x="290" y="90" width="240" height="250" rx="4"/><rect x="560" y="150" width="240" height="190" rx="4"/></g></svg>
+    <div class="lab">Property Photo Placeholder</div>
+  </div>
+  <div style="position:absolute; inset:0; background:rgba(22,52,94,.8);"></div>
+  <div style="position:absolute; left:0; right:0; top:330px; text-align:center;">
+    <img src="assets/tmg_logo_white.png" style="width:640px;">
+    <div style="color:#fff; font-size:28px; font-weight:700; margin-top:22px;">multifamilygrp.com</div>
+  </div>
+  <div style="position:absolute; left:250px; right:250px; bottom:110px; color:#C9D4E4; font-size:20px; line-height:1.5; text-align:center;">
+    This valuation summary has been prepared by the listing broker on behalf of ownership for internal disposition planning purposes. All information is derived from owner-provided operating statements and third-party market data (Yardi Matrix; Fannie Mae / Freddie Mac disclosed MBS data). This document is confidential and intended solely for ownership and authorized representatives.
+  </div>
+</div>
+
+</body></html>
