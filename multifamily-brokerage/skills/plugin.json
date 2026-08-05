@@ -1,0 +1,7 @@
+{
+  "name": "rent-roll-t12-processor",
+  "version": "1.0.0",
+  "description": "Convert multifamily rent rolls and T-12 operating statements (PDF/XLSX from any PM system) into TMG's standardized underwriting workbooks, with charge-code auto-mapping and full reconciliation against each report's own printed totals.",
+  "author": {"name": "The Multifamily Group / Dmytro"},
+  "keywords": ["multifamily", "rent-roll", "t-12", "underwriting", "real-estate"]
+}
