@@ -1,0 +1,11 @@
+{
+  "name": "tmg-plugins",
+  "owner": { "name": "Dmytro Gladchenko" },
+  "plugins": [
+    {
+      "name": "multifamily-brokerage",
+      "source": "./multifamily-brokerage",
+      "description": "Multifamily disposition toolkit: broker valuation summaries (.docx) and OM-style BOV PDF decks in the TMG navy/gold brand."
+    }
+  ]
+}
