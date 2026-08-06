@@ -11,6 +11,9 @@ Currently supported source formats:
     / Resident / Name / Market Rent / Actual Rent ..., with
     Current/Notice/Vacant + Future Residents sections and a Summary Groups
     block) — the Meadows (tmtx) layout.
+  * Owner/PM-made rent roll spreadsheet XLSX (COMPLEX / APT #NUMBER / FLOOR
+    TYPE / Sq. FEET / Tenants / Move In / Lease Expires / ADV. RENT / CURRENT
+    RENT) — the Werner Creek (Toki PM) layout; no as-of date, no totals row.
 
 The code is structured so additional PDF layouts can be added later:
 subclass RentRollParser, implement .detect() and .parse(), and register it
@@ -4577,6 +4580,456 @@ class OwnerBlockRentRollXlsxParser(RentRollParser):
                 "columns are filled only from a cited source via --bedbath.")
 
 
+class OwnerSheetXlsxParser(RentRollParser):
+    """Owner/PM-maintained rent roll spreadsheet (.xlsx) - the Excel sibling
+    of `OwnerSheetPdfParser`.
+
+    Validated on Werner Creek Apartments (Goldenwrist Investments LLC / Toki
+    Property Management LLC, Houston TX, 36 doors, 3/31/2026). A hand-made
+    workbook, not a PM-system export: a free-form title band, then a single
+    header row and one row per unit.
+
+        (idx) | COMPLEX | APT #NUMBER | FLOOR TYPE | Sq. FEET | Tenants |
+        Move In | Lease Expires | ADV. RENT | CURRENT RENT
+        1     | Werner creek Apartments - ... | W01 | 1/1.00 | 630 |
+        Vacant-Unrented | | | 1100 |
+
+    Characteristics of the genre this parser is built around:
+
+    * **The rent roll is not necessarily the first sheet.** The workbook
+      commonly carries the T-12 on sheet 1 and the roll on a later sheet, so
+      every sheet is sniffed for the header row.
+    * **No as-of date anywhere.** `asof_found` is False, so `main` requires an
+      explicit `--asof` rather than inventing one for the filename / cell B2.
+    * **"Tenants" is a status column, not a name** ("Current" /
+      "Vacant-Unrented"), sharing AppFolio's status vocabulary.
+    * **"FLOOR TYPE" is the bed/bath** ("1/1.00" = 1 bed / 1 bath) and it is
+      NOT a floor-plan code - the sheet has no plan names. A plan code is
+      synthesised from bed/bath + sqft ("1x1-630"), which is what makes the
+      Floor Plan rollups meaningful when one bed/bath count spans several
+      unit sizes (Werner's 2/1.00 doors run 829 / 840 / 900 / 930 sf). Bed,
+      bath and sqft all come from the source, so nothing here is an estimate.
+    * **"Lease Expires" is a date OR the literal string "MTM"** - an explicit
+      month-to-month marker written by the owner, which is what sets
+      `term_type = "MTM"`. This satisfies the house rule that MTM is never
+      *inferred*: an expired or missing date is still never read as MTM.
+    * **"ADV. RENT" is the market/asking rent and "CURRENT RENT" the in-place
+      contractual rent.** Both are carried verbatim; an occupied unit with no
+      CURRENT RENT is left blank and FLAGged, never back-filled from ADV.
+      RENT. There is no charge detail, so Other Income, concessions and
+      deposits stay blank.
+    * **No totals row of any kind.** Like the PDF owner-sheet parser, `parse`
+      therefore ALWAYS re-derives unit count, occupied/vacant counts, total
+      sqft, total market rent and total contract rent through a second,
+      independent path - reading the sheet XML straight out of the .xlsx zip
+      (`_reextract`), which shares no code with the openpyxl pass above - and
+      files them as checks labelled "re-extract" so the reconciliation block
+      still ties to something real.
+    """
+
+    name = "OwnerSheet-xlsx"
+    asof_found = False
+
+    # The four labels that make this layout unmistakable. Deliberately does
+    # NOT include the generic ones (COMPLEX / Tenants / Sq. FEET) so the
+    # sniff stays keyed on the distinctive owner-sheet captions.
+    HEADER_KEYS = ("apt #number", "floor type", "adv. rent", "current rent")
+
+    STATUS_MAP = {                  # sheet status -> (apt_status, resident)
+        "current": ("OC", "C"),
+        "occupied": ("OC", "C"),
+        "evict": ("OC", "C"),
+        "notice": ("NA", "N"),
+        "notice-rented": ("NA", "N"),
+        "notice-unrented": ("NA", "N"),
+        "vacant": ("VU", ""),
+        "vacant-unrented": ("VU", ""),
+        "vacant-rented": ("VR", ""),
+    }
+
+    MTM_RE = re.compile(r"^\s*(?:mtm|m-?t-?m|month\s*-?\s*to\s*-?\s*month)\s*$",
+                        re.I)
+    # cells that sit in the unit column but are structure, not a door
+    NON_UNIT = {"total", "totals", "grand total", "sum", "subtotal",
+                "apt #number", "apt", "unit", "complex", "vacant"}
+
+    def __init__(self):
+        self.flags = []
+
+    # -- helpers -------------------------------------------------------------
+
+    @staticmethod
+    def _norm(v):
+        return re.sub(r"\s+", " ", str(v if v is not None else "")).strip()
+
+    @classmethod
+    def _key(cls, v):
+        return cls._norm(v).lower()
+
+    @staticmethod
+    def _num(v):
+        if v is None:
+            return None
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            return float(v)
+        s = str(v).strip().replace(",", "").replace("$", "")
+        if not s:
+            return None
+        neg = s.startswith("(") and s.endswith(")")
+        try:
+            f = float(s.strip("()"))
+        except ValueError:
+            return None
+        return -f if neg else f
+
+    @staticmethod
+    def _date(v):
+        if isinstance(v, datetime):
+            return v.date()
+        if isinstance(v, date):
+            return v
+        s = str(v or "").strip()
+        if not s:
+            return None
+        for fmt in ("%m/%d/%Y", "%m/%d/%y", "%Y-%m-%d"):
+            try:
+                return datetime.strptime(s, fmt).date()
+            except ValueError:
+                pass
+        return None
+
+    @staticmethod
+    def _bb(v):
+        """'1/1.00' -> (1, 1); '2/1.50' -> (2, 1.5); '' -> (None, None)."""
+        m = re.match(r"^\s*(\d+(?:\.\d+)?)\s*/\s*(\d+(?:\.\d+)?)",
+                     str(v if v is not None else ""))
+        if not m:
+            return None, None
+
+        def trim(x):
+            f = float(x)
+            return int(f) if f == int(f) else f
+        return trim(m.group(1)), trim(m.group(2))
+
+    @staticmethod
+    def _plan(bed, bath, sqft):
+        """Synthesise a floor-plan code: 1 bed / 1 bath / 630 sf -> '1x1-630'.
+
+        The sheet carries no plan names, so bed x bath alone would collapse
+        unit sizes that price differently. Falls back to 'BxB' with no sqft,
+        and to "" when bed/bath is missing (an empty plan drops out of the
+        Floor Plan tabs, which is better than a guessed one).
+        """
+        if bed is None or bath is None:
+            return ""
+
+        def trim(x):
+            return str(int(x)) if float(x) == int(float(x)) else str(x)
+        code = f"{trim(bed)}x{trim(bath)}"
+        if sqft:
+            code += f"-{int(round(float(sqft)))}"
+        return code
+
+    @classmethod
+    def _find_header(cls, rows):
+        """(row index, {normalised label: column index}) or (None, {})."""
+        for i, r in enumerate(rows[:40]):
+            vals = [cls._key(v) for v in r]
+            if all(k in vals for k in cls.HEADER_KEYS):
+                return i, {v: j for j, v in enumerate(vals) if v}
+        return None, {}
+
+    @classmethod
+    def _sheet_rows(cls, path):
+        """(sheet title, rows) for the first sheet carrying the header."""
+        from openpyxl import load_workbook as _lw
+        wb = _lw(path, read_only=True, data_only=True)
+        for name in wb.sheetnames:
+            ws = wb[name]
+            rows = [list(r) for r in ws.iter_rows(values_only=True)]
+            i, _ = cls._find_header(rows)
+            if i is not None:
+                return name, rows
+        return None, []
+
+    @staticmethod
+    def detect_xlsx(path):
+        try:
+            name, _ = OwnerSheetXlsxParser._sheet_rows(path)
+        except Exception:
+            return False
+        return name is not None
+
+    # -- independent cross-check --------------------------------------------
+
+    @classmethod
+    def _reextract(cls, path):
+        """Second, independent pass: the sheet XML read straight out of the
+        .xlsx zip, sharing no code with the openpyxl pass in `parse`.
+
+        Owner sheets print no totals row, so this is what the reconciliation
+        block ties the parse to. Returns a dict of derived totals.
+        """
+        import zipfile
+        import xml.etree.ElementTree as ET
+        NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+        REL = ("{http://schemas.openxmlformats.org/officeDocument/2006/"
+               "relationships}")
+
+        def col_of(ref):
+            return re.match(r"[A-Za-z]+", ref or "").group(0)
+
+        with zipfile.ZipFile(path) as z:
+            names = z.namelist()
+            shared = []
+            if "xl/sharedStrings.xml" in names:
+                sst = ET.fromstring(z.read("xl/sharedStrings.xml"))
+                for si in sst.findall(f"{NS}si"):
+                    shared.append("".join(t.text or ""
+                                          for t in si.iter(f"{NS}t")))
+            targets = []
+            if "xl/workbook.xml" in names and "xl/_rels/workbook.xml.rels" in names:
+                rels = {r.get("Id"): r.get("Target") for r in
+                        ET.fromstring(z.read("xl/_rels/workbook.xml.rels"))}
+                wbx = ET.fromstring(z.read("xl/workbook.xml"))
+                sheets_el = wbx.find(f"{NS}sheets")
+                for sh in (list(sheets_el) if sheets_el is not None else []):
+                    tgt = rels.get(sh.get(f"{REL}id"), "")
+                    if tgt:
+                        tgt = tgt.lstrip("/")
+                        if not tgt.startswith("xl/"):
+                            tgt = "xl/" + tgt
+                        targets.append(tgt)
+            if not targets:
+                targets = sorted(n for n in names
+                                 if n.startswith("xl/worksheets/sheet"))
+
+            for tgt in targets:
+                if tgt not in names:
+                    continue
+                grid = []
+                for row in ET.fromstring(z.read(tgt)).iter(f"{NS}row"):
+                    cells = {}
+                    for c in row.findall(f"{NS}c"):
+                        t = c.get("t")
+                        if t == "inlineStr":
+                            is_ = c.find(f"{NS}is")
+                            val = "".join(x.text or ""
+                                          for x in is_.iter(f"{NS}t")) \
+                                if is_ is not None else None
+                        else:
+                            v = c.find(f"{NS}v")
+                            val = v.text if v is not None else None
+                            if val is not None and t == "s":
+                                try:
+                                    val = shared[int(val)]
+                                except (ValueError, IndexError):
+                                    pass
+                        cells[col_of(c.get("r"))] = val
+                    grid.append(cells)
+
+                # locate the header row in this sheet's grid
+                hdr, cols = None, {}
+                for i, cells in enumerate(grid[:40]):
+                    labels = {cls._key(v): k for k, v in cells.items() if v}
+                    if all(k in labels for k in cls.HEADER_KEYS):
+                        hdr, cols = i, labels
+                        break
+                if hdr is None:
+                    continue
+
+                out = {"units": 0, "occupied": 0, "vacant": 0, "sqft": 0.0,
+                       "market": 0.0, "contract": 0.0, "mtm": 0}
+                for cells in grid[hdr + 1:]:
+                    unit = cls._norm(cells.get(cols.get("apt #number")))
+                    if not unit or unit.lower() in cls.NON_UNIT:
+                        continue
+                    status = cls._key(cells.get(cols.get("tenants")))
+                    vacant = status.startswith("vacant") or not status
+                    out["units"] += 1
+                    out["sqft"] += cls._num(cells.get(cols.get("sq. feet"))) or 0
+                    out["market"] += cls._num(cells.get(cols.get("adv. rent"))) or 0
+                    if cls.MTM_RE.match(
+                            cls._norm(cells.get(cols.get("lease expires")))):
+                        out["mtm"] += 1
+                    if vacant:
+                        out["vacant"] += 1
+                    else:
+                        out["occupied"] += 1
+                        out["contract"] += cls._num(
+                            cells.get(cols.get("current rent"))) or 0
+                return out
+        return None
+
+    # -- parse ---------------------------------------------------------------
+
+    def parse(self, path):
+        self.flags = []
+        sheet, rows = self._sheet_rows(path)
+        if sheet is None:
+            sys.exit("ERROR: owner-sheet rent roll header row "
+                     "(APT #NUMBER / FLOOR TYPE / ADV. RENT / CURRENT RENT) "
+                     "not found in any sheet of this workbook.")
+        hdr_i, cols = self._find_header(rows)
+
+        def cell(r, key):
+            j = cols.get(key)
+            return r[j] if j is not None and j < len(r) else None
+
+        # ---- property name: the title band above the header, else COMPLEX
+        prop = ""
+        band = [self._norm(v) for r in rows[:hdr_i] for v in r
+                if self._norm(v)]
+        for txt in band:
+            if re.search(r"apartments?|apts?\b|villas?|homes?|creek|place|"
+                         r"park|manor|court|estates?", txt, re.I):
+                prop = txt
+                break
+        if not prop and band:
+            prop = band[-1]
+        # "Werner creek Apartments - 4635 WERNER St Houston, TX 77022"
+        # -> drop the street address introduced by " - <number>"
+        prop = re.split(r"\s+-\s+(?=\d)", prop, 1)[0].strip()
+
+        units = []
+        mtm_units, no_exp, no_rent = [], [], []
+        for r in rows[hdr_i + 1:]:
+            unit = self._norm(cell(r, "apt #number"))
+            if not unit or unit.lower() in self.NON_UNIT:
+                continue
+
+            raw_status = self._norm(cell(r, "tenants"))
+            key = raw_status.lower()
+            apt_status, res_status = self.STATUS_MAP.get(key, (None, None))
+            if apt_status is None:
+                apt_status, res_status = (
+                    ("VU", "") if key.startswith("vacant") else ("OC", "C"))
+                if raw_status:
+                    self.flags.append(
+                        f"unit {unit}: unrecognised status '{raw_status}' - "
+                        f"treated as "
+                        f"{'vacant' if apt_status == 'VU' else 'occupied'}")
+                else:
+                    self.flags.append(
+                        f"unit {unit}: no status printed - treated as occupied")
+
+            bed, bath = self._bb(cell(r, "floor type"))
+            sqft = self._num(cell(r, "sq. feet"))
+            if bed is None:
+                self.flags.append(
+                    f"unit {unit}: FLOOR TYPE '{self._norm(cell(r, 'floor type'))}' "
+                    "is not a bed/bath - Bed, Bath and Floor Plan left blank")
+
+            u = UnitRecord(
+                unit=unit,
+                floor_plan=self._plan(bed, bath, sqft),
+                sqft=sqft,
+                apt_status=apt_status,
+                market_rent=self._num(cell(r, "adv. rent")),
+                bed_explicit=bed, bath_explicit=bath, bed_bath_explicit=True)
+
+            rent = self._num(cell(r, "current rent"))
+            raw_exp = self._norm(cell(r, "lease expires"))
+            is_mtm = bool(self.MTM_RE.match(raw_exp))
+            exp = None if is_mtm else self._date(cell(r, "lease expires"))
+            if raw_exp and not is_mtm and exp is None:
+                self.flags.append(
+                    f"unit {unit}: Lease Expires reads '{raw_exp}' - not a "
+                    "date and not the sheet's MTM marker; left blank")
+            move_in = self._date(cell(r, "move in"))
+
+            if apt_status.startswith("V"):
+                if rent is not None:
+                    self.flags.append(
+                        f"unit {unit}: marked {raw_status or 'vacant'} but "
+                        f"shows a CURRENT RENT of ${rent:,.2f} - excluded "
+                        "from in-place rent")
+            else:
+                res = Resident(
+                    name="", status=res_status or "C",
+                    charges=[("RENT", rent, False)] if rent is not None else [],
+                    move_in=move_in,
+                    # the sheet prints one date only; see source_note
+                    lease_start=move_in,
+                    lease_expires=exp,
+                    term_type="MTM" if is_mtm else "")
+                u.residents.append(res)
+                if is_mtm:
+                    mtm_units.append(unit)
+                if rent is None:
+                    no_rent.append(unit)
+                if exp is None and not is_mtm:
+                    no_exp.append(unit)
+            units.append(u)
+
+        dupes = sorted({u.unit for u in units
+                        if [x.unit for x in units].count(u.unit) > 1})
+        if dupes:
+            self.flags.append("duplicate unit id(s): " + ", ".join(dupes))
+        if no_rent:
+            self.flags.append(
+                "occupied but the sheet prints NO CURRENT RENT for "
+                + ", ".join(no_rent)
+                + " - Contractual Rent and Net Effective Rent are left blank/0 "
+                  "for those doors, NOT back-filled from ADV. RENT; they still "
+                  "count as occupied because the sheet says so. Ownership "
+                  "should confirm the in-place rent")
+        if no_exp:
+            self.flags.append(
+                "occupied with NO Lease Expires printed and no MTM marker: "
+                + ", ".join(no_exp)
+                + " - Lease Expiration left blank and MTM left blank (MTM is "
+                  "never inferred from a missing or expired date)")
+        if mtm_units:
+            self.flags.append(
+                "month-to-month per the sheet's explicit 'MTM' marker in the "
+                "Lease Expires column: " + ", ".join(mtm_units)
+                + " - MTM = Yes, Lease Expiration blank (no date exists)")
+        self.flags.append(
+            "the workbook prints NO as-of date - the date in the filename and "
+            "cell B2 came from --asof, not from the source")
+
+        # ---- checks: no totals row exists, so tie to the independent pass
+        checks, src = {}, {}
+        rx = self._reextract(path)
+        if not rx:
+            sys.exit("ERROR: the independent re-extraction pass found no rent "
+                     "roll sheet - refusing to ship an unreconciled workbook.")
+        checks["unit_count"] = rx["units"]
+        checks["occupied_count"] = rx["occupied"]
+        checks["vacant_count"] = rx["vacant"]
+        checks["total_sqft"] = rx["sqft"]
+        checks["total_market_rent"] = rx["market"]
+        checks["total_contract_rent"] = rx["contract"]
+        for k in ("unit_count", "occupied_count", "vacant_count",
+                  "total_sqft", "total_market_rent", "total_contract_rent"):
+            src[k] = "re-extract"
+        checks["_src"] = src
+        checks["extra_checks"] = [
+            ("MTM units (explicit marker)",
+             lambda us: sum(1 for u in us for r in u.residents
+                            if re.search(r"MTM", r.term_type or "", re.I)),
+             rx["mtm"], 0.5),
+        ]
+        return prop, None, units, checks
+
+    def source_note(self, asof):
+        d = asof.strftime("%m/%d/%Y") if asof else "unknown date"
+        return (f"Generated from an owner/PM-prepared rent roll spreadsheet "
+                f"(xlsx) as of {d}; the workbook prints no as-of date, so it "
+                "was supplied with --asof. Market Rent = the sheet's ADV. RENT "
+                "column; Contractual Rent = its CURRENT RENT column. Bed/Bath "
+                "come from FLOOR TYPE and Net Sf from Sq. FEET - both from the "
+                "source, neither estimated - and Floor Plan is synthesised as "
+                "bed x bath - sqft (the sheet names no plans). MTM = Yes only "
+                "where the sheet writes the literal 'MTM' in Lease Expires; it "
+                "is never inferred from a missing or expired date. The sheet "
+                "prints one 'Move In' date per unit, used for both Move In "
+                "Date and Lease Start Date - no separate lease-start date "
+                "exists. It carries no charge detail, so concessions, other "
+                "income and deposits are intentionally blank.")
+
+
 # Detection order matters. OneSite first (its detect() keys on the report's
 # own product banner + title). ResManSummary before ResMan: the full-roll
 # ResMan detect() ('ResMan' + 'Rent Roll') also matches a Rent Roll Summary,
@@ -4598,8 +5051,15 @@ PARSERS = [BuildiumRentRollParser, OneSiteRentsParser, ResManSummaryParser,
 # Recurring Charges column set, which the Status-column AppFolio export does
 # not have, so it cannot steal it (and AppFolioXlsxParser's own detect needs a
 # 'status' column this layout does not print - checked both ways).
+# OwnerSheetXlsxParser last, mirroring OwnerSheetPdfParser's place in PARSERS:
+# the owner-made genre is the fallback family. Its sniff demands all four of
+# APT #NUMBER / FLOOR TYPE / ADV. RENT / CURRENT RENT, which no PM-system
+# export prints, and it is the only xlsx parser that sniffs EVERY sheet (the
+# roll usually rides along behind a T-12 sheet) - so it can neither steal nor
+# be stolen from by the four above (checked both ways).
 XLSX_PARSERS = [OwnerBlockRentRollXlsxParser, AppFolioUnitTypeXlsxParser,
-                AppFolioXlsxParser, YardiRentRollXlsxParser]
+                AppFolioXlsxParser, YardiRentRollXlsxParser,
+                OwnerSheetXlsxParser]
 
 
 
@@ -5912,7 +6372,8 @@ def main(argv=None):
         cls = next((p for p in XLSX_PARSERS if p.detect_xlsx(args.pdf)), None)
         if cls is None:
             sys.exit("ERROR: xlsx input does not match any supported rent "
-                     "roll export layout (AppFolio, Yardi/ResMan).")
+                     "roll export layout (AppFolio, Yardi/ResMan, "
+                     "owner-made sheet).")
         parser = cls()
         prop, asof, units, checks = parser.parse(args.pdf)
     else:
