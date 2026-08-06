@@ -1,0 +1,18 @@
+{
+  "name": "multifamily-brokerage",
+  "version": "0.3.0",
+  "description": "Multifamily toolkit: TMG Excel model underwriting workflow, sale comparables workbook generation, loan terms lookup, broker valuation summaries (.docx), and OM-style BOV PDF decks in The Multifamily Group navy/gold brand.",
+  "author": {
+    "name": "Dmytro Gladchenko"
+  },
+  "keywords": [
+    "multifamily",
+    "brokerage",
+    "valuation",
+    "BOV",
+    "underwriting",
+    "sale-comps",
+    "loan-terms",
+    "real-estate"
+  ]
+}
