@@ -57,7 +57,17 @@ re-open + automatic recalc + re-save to be cleaned.
   rounded box and lose their gallery style in Excel. Fix: after all openpyxl
   edits, ZIP-replace `xl/charts/chartN.xml` with the pristine template's
   parts (series ranges are identical; Excel refreshes cached values on the
-  next full recalc). See `restore_charts.py` pattern in the St Nicholas notes.
+  next full recalc). See `restore_model_charts.py` in scripts/.
+- **The template's "Trended Revenue/Unit" scatter ships with hardcoded YELLOW
+  (`FFFF00`) markers on BOTH series** — Dmytro calls this "the yellow dots
+  error"; it is in the Git template itself, so restoring pristine parts
+  restores the bug. House fix: comp circles -> `4F81BD` (theme accent1 /
+  Style 1 blue), Subject diamond -> `FDB714` (TMG gold). The scatter that
+  PRINTS is on the PDF sheet (chart2 for F&C, chart8 for Assume Loan; chart5/
+  chart11 are internal mirrors; chart14/15 on the Agency sheet do not print).
+  Patch the marker `<a:srgbClr>` values at ZIP level — explicit colors
+  survive Excel round-trips. `restore_model_charts.py` now does this
+  automatically after restoring the pristine parts.
 - The PDF sheet's comp-map frame is `I121:O147` — insert the generated map
   picture at exactly that range's Left/Top/Width/Height (LockAspectRatio=0)
   so it fills the frame snugly; render the PNG at the frame's aspect ratio
