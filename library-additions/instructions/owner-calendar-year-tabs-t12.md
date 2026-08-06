@@ -95,3 +95,11 @@ proved against the sum of printed grand rows.
 - Apply deal-specific overrides through a **run-local corpus copy**
   (`--mappings work/t12_mappings_<deal>.csv`). Never edit the shared
   `t12_mappings.csv` inside a job.
+
+## Before you send
+
+Run the pre-send QC gate over `outbox/` — it is a different check from the
+processing script's reconciliation (that proves the numbers tie to the source;
+this proves the FILE is well-formed and internally consistent):
+
+    python scripts/verify_deliverable_workbooks.py outbox/ --excel
