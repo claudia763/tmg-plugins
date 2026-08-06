@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  html, body { margin: 0; padding: 0; }
+  #map { width: 1530px; height: 1000px; }
+  .pin { display: flex; align-items: center; justify-content: center;
+         width: 34px; height: 34px; border-radius: 50%;
+         background: #1B3E6F; color: #fff; font: bold 16px/1 Arial;
+         border: 3px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.5); }
+  .pin.subject { background: #FDB714; color: #1B3E6F; width: 40px; height: 40px; font-size: 15px; }
+  .legend { position: absolute; bottom: 18px; left: 18px; z-index: 1000;
+            background: rgba(255,255,255,.95); border: 1px solid #1B3E6F;
+            padding: 10px 14px; font: 13px Arial; color: #222; }
+  .legend .row { margin: 3px 0; }
+  .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%;
+         background: #1B3E6F; margin-right: 7px; }
+  .dot.s { background: #FDB714; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="legend">
+  <div class="row"><span class="dot s"></span><b>St Nicholas Place (Subject)</b></div>
+  <div class="row"><span class="dot"></span>1 &nbsp;Ridgmar Townhomes</div>
+  <div class="row"><span class="dot"></span>2 &nbsp;Waverly Park</div>
+  <div class="row"><span class="dot"></span>3 &nbsp;Vista Del Sol</div>
+  <div class="row"><span class="dot"></span>4 &nbsp;Elizabeth Gardens</div>
+  <div class="row"><span class="dot"></span>5 &nbsp;Azle Creek Apartments</div>
+</div>
+<script>
+  var map = L.map('map', { zoomControl: false, attributionControl: true });
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+  var pts = [
+    { lat: 32.7051, lon: -97.4519, label: 'S', subject: true },
+    { lat: 32.7393, lon: -97.4290, label: '1' },
+    { lat: 32.7208, lon: -97.4751, label: '2' },
+    { lat: 32.6839, lon: -97.3385, label: '3' },
+    { lat: 32.9993, lon: -97.2224, label: '4' },
+    { lat: 32.8991, lon: -97.5494, label: '5' }
+  ];
+  var bounds = [];
+  pts.forEach(function (p) {
+    var cls = p.subject ? 'pin subject' : 'pin';
+    L.marker([p.lat, p.lon], {
+      icon: L.divIcon({ className: '', html: '<div class="' + cls + '">' + p.label + '</div>',
+                        iconSize: [40, 40], iconAnchor: [20, 20] })
+    }).addTo(map);
+    bounds.push([p.lat, p.lon]);
+  });
+  map.fitBounds(bounds, { padding: [70, 70] });
+</script>
+</body>
+</html>
