@@ -7,10 +7,18 @@ this deal again or reusing the model workflow.
 
 ## Final model (TMG template from Git, built on Windows Excel COM)
 
-- Deliverables: `CK St Nicholas Place 8-6-2026.xlsx` + single-sheet PDF of
-  `PDF Output - F&C`. Strike **$2,450,000** ($61,250/unit) — upper half of the
-  model's supported band $1.9M–$2.7M; IRR 27.2% (target 25%), avg CoC 14.9%,
-  T-3 DSCR 1.73x at 65% LTV / 6.58% avg agency rate (G62 left blank).
+- Deliverables: `CK - St Nicholas Place - 8-6-2026.xlsx` (naming convention
+  "CK - Property Name - Date", Dmytro 8/6) + single-sheet PDF of
+  `PDF Output - F&C`.
+- **Round 2 reprice under the 8/6 aggressive house rule** (see
+  `aggressive-pricing-house-rule-8-2026.md`): strike **$2,830,000**
+  ($70,750/unit), Light + Premium Interior Renovations marked (C18+C20,
+  $130k capital, +$48k/yr program income, all 40 doors covered); IRR 25.13%
+  (floor binds), CoC 13.3%, T-3 DSCR 1.43 at 65% LTV; Year-1 UW NOI $207,111
+  (7.32% pro forma cap); supported band $2.3M–$3.3M. The writeup/BOV
+  delivered earlier on 8/6 still reflect the prior $2.45M pricing.
+- Round 1 (superseded): strike $2,450,000, no renovations, IRR 27.2%,
+  CoC 14.9%, DSCR 1.73x.
 - T-3 economic-loss distress test = 0% (cash-basis QuickBooks T-12 has no
   vacancy/concession/bad-debt lines -> UW - F&C AC8:AC10 all zero), so the
   DSCR>1.25 rule applied.
