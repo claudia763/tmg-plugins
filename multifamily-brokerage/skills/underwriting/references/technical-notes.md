@@ -88,3 +88,42 @@ for rng in ws.conditional_formatting:
         new.add(str(rng.sqref), rule)
 ws.conditional_formatting = new
 ```
+
+## 8. Preserving Power Query / connections / query tables ("patch, don't round-trip")
+
+Any openpyxl or LibreOffice **save** silently strips `customXml/item1.xml`
+(the DataMashup part holding all Power Query M code), `xl/connections.xml`,
+and every `xl/queryTables/*` part. If the deliverable must keep refresh
+functionality, split the work:
+
+1. **Working copy** — full openpyxl + recalc loop exactly as above. Use it
+   for tuning, error checks, and the PDF export. Disposable.
+2. **Deliverable** — zip-level surgery on a pristine copy of the original:
+   edit only the sheet XML parts that need new input values (lxml), update
+   the table part refs, and re-zip copying every other part byte-for-byte.
+   Never open-and-save the result with openpyxl or LibreOffice.
+
+Mechanics that matter:
+- Write strings as inline strings (`t="inlineStr"`) — avoids touching
+  sharedStrings.xml.
+- Preserve each cell's existing `s` style attribute; for NEW date cells
+  append cellXfs entries to styles.xml (numFmtId 14 built-in; custom
+  formats get a fresh numFmtId ≥ 164) and reference the new xf indices.
+- Keep `<row>`/`<c>` elements sorted; array formulas need
+  `<f t="array" ref="...">`.
+- Set `fullCalcOnLoad="1"` on `<calcPr>` in workbook.xml — the pristine
+  copy's cached values are stale, so Excel must recalc on first open.
+- Set `refreshOnLoad="1"` on the pivotCacheDefinition so the FinalRR pivot
+  block refreshes off the new rent roll (its output cells are static
+  otherwise and nothing else recomputes them; no formulas consume it).
+- Leave the sheet-scoped external defined names and external-link formula
+  cells ALONE in the preserved copy — with externalLinks intact they behave
+  exactly as the original did in Excel.
+- Verify by static parity diff (literal input cells preserved-vs-working
+  copy must match; the only acceptable diffs are empty-string spacer cells
+  LibreOffice deletes and the pivot output block). Do NOT LibreOffice-recalc
+  the preserved file even as a test — LO chokes on the query-table parts
+  (observed: a 2 GB temp file) and a save would strip them anyway.
+
+`scripts/surgery_example.py` in this skill is the worked implementation from
+the Flats at Shadowglen build.
