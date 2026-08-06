@@ -106,3 +106,14 @@ Cross-check the answer against the county improvement area: 14,792 sf recorded
 vs 14,900 sf implied by 6×500 + 14×850 is +0.73%, which independently confirms
 both the door count and the size split. Note that as corroboration only — the
 workbook keeps the rent roll's own sqft.
+
+## Before you send
+
+Run the pre-send QC gate over `outbox/`:
+
+    python scripts/verify_deliverable_workbooks.py outbox/ --excel
+
+It catches the class of defect a reconciliation block structurally cannot —
+reconciliation only proves the numbers that tie to the source, so it stays
+green while a column the source populates is silently dropped from the
+deliverable (exactly how the empty Renovation Status column got caught here).
