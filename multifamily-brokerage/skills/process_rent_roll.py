@@ -207,6 +207,13 @@ class UnitRecord:
     # whose charge detail carries a housing-authority subsidy. The floor-plan
     # code is left untouched so plan rollups/sqft still work.
     lease_type: str = ""
+    # Renovation Status (output col G; rediQ named range RenovationString).
+    # Filled only when the SOURCE states a renovation/unit-condition tier for
+    # the unit -- never derived from rent levels or from the floor-plan code.
+    # Floor Plan Summary col C ("Renovated") rolls it up per plan when every
+    # unit in the plan agrees, and that feeds the Floor Plan tab's
+    # "Renov. Status" column.
+    renovation_status: str = ""
     # Explicit bed/bath. When bed_bath_explicit is True these are returned
     # verbatim by .bed_bath -- including None, which renders blank. Parsers
     # set this for layouts whose floor-plan code does NOT encode bed/bath
@@ -3887,6 +3894,689 @@ class AppFolioUnitTypeXlsxParser(RentRollParser):
                 "are intentionally blank.")
 
 
+class OwnerBlockRentRollXlsxParser(RentRollParser):
+    """Owner-maintained rent roll workbook whose units are MULTI-ROW BLOCKS.
+
+    Added for Magnolia Place (Brenham, TX, 20 doors, 7/2026). One sheet, a
+    free-text title band, then a single header row::
+
+        Unit Type | Unit # | Sq Ft | Occupancy | Resident | Market Rent |
+        Charge Code | Charges | Move-in Date | Lease Start | Lease End |
+        Deposit | Deposit Notes | Renewal | NTV
+
+    Each unit occupies a BLOCK of 5-7 rows. The block's first row carries the
+    identity (Unit #, Sq Ft, Occupancy, Market Rent, the dates and the
+    deposit) plus the first Resident and the ``Rent`` charge; the rows below
+    it carry the rest of the block's charge codes, extra occupant names and
+    extra Unit Type words.
+
+    Genre characteristics this parser is built around - all of them owner
+    conventions a PM export would never produce:
+
+    * **Col A is not one field.** It holds an unlabelled DATE on the block's
+      first row and the unit's tier word ("PREMIUM" / "CLASSIC" / "PARTIAL",
+      plus "PATIO" on the units that have one) one or two rows below it. The
+      date is NOT a unit type: it is reported verbatim as an unlabelled owner
+      annotation and never written into the Floor Plan column.
+    * **The charge column is a standing MENU, not a bill.** Every block prints
+      the same list of codes (Pet / Patio / NEW CREDIT / MISC. FEE / MTM /
+      Late Fee, with typo and trailing-space variants) with EMPTY amounts;
+      only ``Rent`` ever carries a number. Menu rows are reported and booked
+      as nothing at all - a $0 Other Income charge would be an invented
+      charge. An amount of exactly 0 printed against a menu code is treated
+      the same way and reported separately.
+    * **The standing "MTM" menu row is NOT an MTM signal** (house rule: MTM
+      comes only from an explicit month-to-month FEE, and this row has no
+      amount). A literal lease-term word in the Lease End cell ("Monthly") IS
+      an explicit statement about the lease by the source, so it sets
+      ``term_type="MTM"``, leaves Lease Expiration blank, and is FLAGged.
+    * **The Resident column mixes names and phone numbers.** A cell that is a
+      phone number is not an occupant: it is excluded from the resident name
+      and reported by unit.
+    * **A unit's deposit may be split across two rows of its block** (and one
+      unit may have none at all). Deposits are summed over the whole block;
+      an occupied unit with no deposit stays blank, never 0.
+    * **No as-of date and no property name** are printed anywhere, so
+      ``asof_found = False`` makes ``--asof`` mandatory and ``--property``
+      supplies the name.
+    * **No bed/bath anywhere.** Bed and Bath are marked explicit-and-blank so
+      the generic floor-plan-code guess can never fire; they arrive through
+      ``--bedbath`` / ``--bedbath-est`` from a cited source.
+
+    Reconciliation: the sheet prints one totals row (Market Rent / Charges /
+    Deposit) and no unit count, so - exactly like `OwnerSheetPdfParser` -
+    `parse` ALWAYS re-derives unit count, occupied count, sq ft and all three
+    money totals through a second, fully independent path (`_reextract`:
+    raw sheet XML out of the zip container, which never touches the block
+    parser above) and files them as checks labelled "re-extract".
+    """
+
+    name = "OwnerBlock-xlsx"
+    asof_found = False
+
+    # ---- floor-plan naming (easy to adjust) --------------------------------
+    # A floor plan is (sq ft, tier[, PATIO]): every unit in a plan must share
+    # one sq ft, and the tier words alone do not (PREMIUM covers both the 500
+    # sf and the 850 sf units).
+    #
+    # SQFT_LABELS supplies the leading token. Leave it EMPTY and the sq ft
+    # itself is used ("500sf Premium") - honest while the bed/bath counts are
+    # unknown. Once they are sourced, set e.g. {500: "1x1", 850: "2x1"} to get
+    # TMG's house naming "1x1 Premium" / "2x1 Classic". The bed/bath VALUES
+    # still come from --bedbath/--bedbath-est keyed on the plan name; nothing
+    # about bed/bath is hardcoded here.
+    # Magnolia Place 8/2026: 500 sf = 1/1 and 850 sf = 2/1, verified against
+    # public listings for 301/303 Goessler St (Zumper building p142643,
+    # corroborated by PadMapper / ApartmentGuide / Apartments.com), so the
+    # plans read "1x1 Premium" / "2x1 Classic". The bed/bath VALUES still come
+    # in through --bedbath from that cited source - these are display tokens.
+    SQFT_LABELS = {500: "1x1", 850: "2x1"}
+    PLAN_TEMPLATE = "{size} {tier}"
+    # A patio is an amenity, not a unit type. True -> the patio units get
+    # their own plans ("2x1 Premium Patio"), which keeps the source's own
+    # distinction visible in the workbook. False -> they roll into the base
+    # tier plan and the patio is reported as a flag only.
+    # Dmytro 8/6/2026: False at Magnolia Place - the patio earns no market or
+    # contract rent premium there, and separate plans would leave three
+    # one-unit plans whose per-plan averages mean nothing.
+    PATIO_AS_PLAN = False
+    TIERS = ("PREMIUM", "CLASSIC", "PARTIAL")
+    # Col A words that qualify a tier rather than being one.
+    QUALIFIERS = ("PATIO",)
+
+    HEADER_KEYS = ("unit type", "unit #", "sq ft", "occupancy", "resident",
+                   "market rent", "charge code", "charges", "move-in date",
+                   "lease start", "lease end", "deposit")
+
+    PHONE = re.compile(r"^\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}$")
+    # An explicit lease-term word printed in the Lease End cell.
+    MONTHLY_TERM = re.compile(r"^(month|monthly|month[-\s]?to[-\s]?month"
+                              r"|m2m|mtm)$", re.I)
+    VACANT_WORDS = ("vacant", "vac", "empty", "down")
+
+    def __init__(self):
+        self.flags = []
+        self.menu_codes = {}        # normalised code -> count of empty rows
+        self.zero_codes = {}        # normalised code -> count of $0 rows
+        self.col_a_dates = {}       # unit -> [date, ...]
+        self.phone_cells = {}       # unit -> [phone, ...]
+        self.deposit_notes = {}     # unit -> [note, ...]
+        self.split_deposits = {}    # unit -> [amount, ...]
+
+    # -- helpers -------------------------------------------------------------
+
+    @staticmethod
+    def _txt(v):
+        """Cell -> trimmed single-spaced text. Dates render as '' (a date is
+        never a label in this layout)."""
+        if v is None or isinstance(v, (datetime, date)):
+            return ""
+        if isinstance(v, float) and v == int(v):
+            return str(int(v))
+        return re.sub(r"\s+", " ", str(v)).strip()
+
+    @staticmethod
+    def _num(v):
+        if v is None or isinstance(v, (datetime, date)):
+            return None
+        if isinstance(v, str):
+            s = v.strip().replace(",", "").replace("$", "")
+            if not s:
+                return None
+            neg = s.startswith("(") and s.endswith(")")
+            try:
+                f = float(s.strip("()"))
+            except ValueError:
+                return None
+            return -f if neg else f
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _d(v):
+        if isinstance(v, datetime):
+            return v.date()
+        if isinstance(v, date):
+            return v
+        if isinstance(v, str):
+            for fmt in ("%m/%d/%Y", "%m/%d/%y", "%Y-%m-%d"):
+                try:
+                    return datetime.strptime(v.strip(), fmt).date()
+                except ValueError:
+                    pass
+        return None
+
+    @classmethod
+    def _norm_row(cls, r):
+        return [re.sub(r"\s+", " ", str(v or "")).strip().lower()
+                if not isinstance(v, (datetime, date)) else ""
+                for v in r]
+
+    @classmethod
+    def _find_header(cls, rows):
+        for i, r in enumerate(rows[:25]):
+            vals = cls._norm_row(r)
+            if all(k in vals for k in cls.HEADER_KEYS):
+                return i, {v: j for j, v in enumerate(vals) if v}
+        return None, {}
+
+    @classmethod
+    def _has_blocks(cls, rows, hdr_i, cols):
+        """True when units are MULTI-ROW blocks: at least two rows that carry
+        a charge code but no Unit # directly under a row that has one. This is
+        the structural half of detection - a one-row-per-unit sheet with the
+        same headers would not be this format."""
+        ui, ci = cols.get("unit #"), cols.get("charge code")
+        if ui is None or ci is None:
+            return False
+        cont = seen_unit = 0
+        for r in rows[hdr_i + 1:]:
+            unit = cls._txt(r[ui]) if ui < len(r) else ""
+            code = cls._txt(r[ci]) if ci < len(r) else ""
+            if unit:
+                seen_unit += 1
+            elif code and seen_unit:
+                cont += 1
+        return seen_unit >= 2 and cont >= 2
+
+    @staticmethod
+    def detect_xlsx(path):
+        cls = OwnerBlockRentRollXlsxParser
+        try:
+            from openpyxl import load_workbook as _lw
+            wb = _lw(path, read_only=True, data_only=True)
+            ws = wb[wb.sheetnames[0]]
+            rows = [list(r) for r in ws.iter_rows(values_only=True)]
+        except Exception:
+            return False
+        i, cols = cls._find_header(rows)
+        if i is None:
+            return False
+        return cls._has_blocks(rows, i, cols)
+
+    # -- independent cross-check --------------------------------------------
+
+    @classmethod
+    def _reextract(cls, path):
+        """Second, fully independent pass: the worksheet's raw XML straight
+        out of the .xlsx zip container (openpyxl is not involved, and none of
+        the block-assembly code above is reachable from here).
+
+        Returns a dict of re-derived totals for the reconciliation block.
+        """
+        import zipfile
+        import xml.etree.ElementTree as ET
+        NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+        NSR = ("{http://schemas.openxmlformats.org/officeDocument/2006/"
+               "relationships}")
+        RNS = "{http://schemas.openxmlformats.org/package/2006/relationships}"
+
+        with zipfile.ZipFile(path) as z:
+            shared = []
+            if "xl/sharedStrings.xml" in z.namelist():
+                root = ET.fromstring(z.read("xl/sharedStrings.xml"))
+                for si in root.findall(f"{NS}si"):
+                    shared.append("".join(t.text or ""
+                                          for t in si.iter(f"{NS}t")))
+            wbx = ET.fromstring(z.read("xl/workbook.xml"))
+            sheet = wbx.find(f"{NS}sheets").find(f"{NS}sheet")
+            rid = sheet.get(f"{NSR}id")
+            rels = ET.fromstring(z.read("xl/_rels/workbook.xml.rels"))
+            target = next(rel.get("Target")
+                          for rel in rels.findall(f"{RNS}Relationship")
+                          if rel.get("Id") == rid)
+            target = (target.lstrip("/") if target.startswith("/")
+                      else "xl/" + target.lstrip("./"))
+            sx = ET.fromstring(z.read(target))
+
+        def val(c):
+            t = c.get("t")
+            if t == "inlineStr":
+                node = c.find(f"{NS}is")
+                return ("".join(x.text or "" for x in node.iter(f"{NS}t"))
+                        if node is not None else None)
+            v = c.find(f"{NS}v")
+            if v is None or v.text in (None, ""):
+                return None
+            if t == "s":
+                return shared[int(v.text)]
+            if t in ("str", "e"):
+                return v.text
+            try:
+                return float(v.text)
+            except ValueError:
+                return v.text
+
+        grid = []
+        for row in sx.iter(f"{NS}row"):
+            cells = {}
+            for c in row.findall(f"{NS}c"):
+                m = re.match(r"([A-Z]+)", c.get("r") or "")
+                if m:
+                    cells[m.group(1)] = val(c)
+            grid.append(cells)
+
+        # locate the header row and its column letters, independently
+        hdr, letters = None, {}
+        for i, cells in enumerate(grid):
+            low = {k: re.sub(r"\s+", " ", str(v)).strip().lower()
+                   for k, v in cells.items() if isinstance(v, str)}
+            if all(k in low.values() for k in cls.HEADER_KEYS):
+                hdr = i
+                letters = {v: k for k, v in low.items()}
+                break
+        if hdr is None:
+            return {}
+
+        def g(cells, key):
+            return cells.get(letters.get(key, ""))
+
+        out = {"units": 0, "occupied": 0, "sqft": 0.0, "market": 0.0,
+               "charges": 0.0, "rent": 0.0, "rent_rows": 0, "other_rows": 0,
+               "deposits": 0.0, "totals": None, "rows_after_totals": 0}
+        for cells in grid[hdr + 1:]:
+            unit = g(cells, "unit #")
+            code = g(cells, "charge code")
+            unit_s = "" if unit is None else str(unit).strip()
+            code_s = "" if code is None else str(code).strip()
+            mkt = g(cells, "market rent")
+            chg = g(cells, "charges")
+            dep = g(cells, "deposit")
+            if (not unit_s and not code_s
+                    and isinstance(mkt, float) and isinstance(chg, float)):
+                out["totals"] = {"market": mkt, "charges": chg,
+                                 "deposits": dep if isinstance(dep, float)
+                                 else None}
+                continue
+            if out["totals"] is not None and (unit_s or code_s):
+                out["rows_after_totals"] += 1
+                continue
+            if unit_s:
+                out["units"] += 1
+                occ = str(g(cells, "occupancy") or "").strip().lower()
+                if occ.startswith("occ"):
+                    out["occupied"] += 1
+                sf = g(cells, "sq ft")
+                if isinstance(sf, float):
+                    out["sqft"] += sf
+                if isinstance(mkt, float):
+                    out["market"] += mkt
+            if isinstance(chg, float):
+                out["charges"] += chg
+                if RENT_CODES.search(re.sub(r"\s+", " ", code_s)):
+                    out["rent"] += chg
+                    out["rent_rows"] += 1
+                elif chg:
+                    # a non-rent code carrying a REAL (non-zero) amount; the
+                    # standing menu rows print no amount at all and a printed
+                    # 0.00 is a menu row, not a charge
+                    out["other_rows"] += 1
+            if isinstance(dep, float):
+                out["deposits"] += dep
+        return out
+
+    # -- main parse ----------------------------------------------------------
+
+    def parse(self, path):
+        from openpyxl import load_workbook as _lw
+        wb = _lw(path, data_only=True)
+        ws = wb[wb.sheetnames[0]]
+        rows = [list(r) for r in ws.iter_rows(values_only=True)]
+
+        hdr_i, cols = self._find_header(rows)
+        if hdr_i is None:
+            sys.exit("ERROR: owner block rent-roll header row not found.")
+
+        def cell(r, key):
+            j = cols.get(key)
+            return r[j] if j is not None and j < len(r) else None
+
+        # ---- title band: no property name and no as-of date are printed ----
+        prop = ""
+        title = " ".join(self._txt(v) for r in rows[:hdr_i] for v in r).strip()
+        # "July 2026 Rent Roll" -> nothing identifying survives; never guess a
+        # property name out of a month.
+        stripped = re.sub(r"(?i)\b(rent\s*roll|jan\w*|feb\w*|mar\w*|apr\w*|may|"
+                          r"jun\w*|jul\w*|aug\w*|sep\w*|oct\w*|nov\w*|dec\w*|"
+                          r"\d{4}|as\s*of|[-,:])\b", " ", title)
+        if re.sub(r"\s+", "", stripped):
+            prop = re.sub(r"\s+", " ", stripped).strip()
+
+        # ---- split the detail into per-unit blocks -------------------------
+        blocks, cur, totals_row = [], None, None
+        after_totals = 0
+        for r in rows[hdr_i + 1:]:
+            if all(v is None or self._txt(v) == "" for v in r) and \
+                    not any(isinstance(v, (datetime, date)) for v in r):
+                continue
+            unit = self._txt(cell(r, "unit #"))
+            code = self._txt(cell(r, "charge code"))
+            if not unit and not code and totals_row is None and \
+                    self._num(cell(r, "market rent")) is not None and \
+                    self._num(cell(r, "charges")) is not None:
+                totals_row = r
+                continue
+            if totals_row is not None:
+                after_totals += 1
+                continue
+            if unit:
+                cur = [r]
+                blocks.append((unit, cur))
+            elif cur is not None:
+                cur.append(r)
+        if after_totals:
+            self.flags.append(
+                f"{after_totals} row(s) carry data BELOW the sheet's totals "
+                "row - they were not parsed; check the source")
+
+        units, checks = [], {}
+        for unit, brows in blocks:
+            units.append(self._build(unit, brows, cell))
+
+        dupes = sorted({u.unit for u in units
+                        if [x.unit for x in units].count(u.unit) > 1})
+        if dupes:
+            self.flags.append("duplicate unit id(s): " + ", ".join(dupes))
+
+        # ---- flags reporting the owner conventions -------------------------
+        if self.col_a_dates:
+            pairs = sorted({(u.sqft, d.isoformat())
+                            for u in units for d in self.col_a_dates.get(
+                                u.unit, [])})
+            self.flags.append(
+                "the Unit Type column (col A) also holds an UNLABELLED DATE "
+                "on each block's first row - "
+                + "; ".join(f"{d} on the {sf:g} sf units" for sf, d in pairs)
+                + ". It is not a unit type and is not written to the Floor "
+                  "Plan column; the sheet gives it no caption, so what it "
+                  "means (market-rent effective date? renovation date?) "
+                  "should be confirmed with ownership")
+        if self.menu_codes:
+            self.flags.append(
+                "each unit prints a standing CHARGE MENU with empty amounts ("
+                + ", ".join(f"'{c}' x{n}"
+                            for c, n in sorted(self.menu_codes.items()))
+                + ") - only 'Rent' ever carries an amount, so no other income "
+                  "was booked. Booking these as $0 charges would invent "
+                  "charges the sheet does not make")
+        if self.zero_codes:
+            self.flags.append(
+                "menu code(s) printed with an explicit 0.00 amount ("
+                + ", ".join(f"'{c}' x{n}"
+                            for c, n in sorted(self.zero_codes.items()))
+                + ") - treated as menu rows, not charges")
+        if self.phone_cells:
+            self.flags.append(
+                "the Resident column holds a PHONE NUMBER (not an occupant) "
+                "on unit(s) "
+                + "; ".join(f"{u} ({', '.join(v)})"
+                            for u, v in sorted(self.phone_cells.items()))
+                + " - excluded from the resident names")
+        if self.split_deposits:
+            self.flags.append(
+                "deposit split across more than one row of the unit's block: "
+                + "; ".join(
+                    f"unit {u}: " + " + ".join(f"${a:,.0f}" for a in v)
+                    + f" = ${sum(v):,.0f}"
+                    for u, v in sorted(self.split_deposits.items()))
+                + " - summed")
+        nodep = [u.unit for u in units
+                 if not u.is_vacant and (u.primary.deposit if u.primary
+                                         else None) is None]
+        if nodep:
+            self.flags.append(
+                "occupied unit(s) with NO deposit printed: "
+                + ", ".join(nodep)
+                + " - left blank, not zero (the sheet's own deposit total "
+                  "excludes them, which is what ties out)")
+        empty_cols = [k for k in ("renewal", "ntv")
+                      if k in cols and not any(
+                          self._txt(cell(r, k)) for _, br in blocks
+                          for r in br)]
+        if empty_cols:
+            self.flags.append(
+                "the " + " and ".join(c.upper() for c in empty_cols)
+                + " column(s) are printed but empty for every unit - no unit "
+                  "is on notice or flagged for renewal in this roll")
+
+        # ---- checks --------------------------------------------------------
+        rx = self._reextract(path)
+        src = {}
+        if rx:
+            checks["unit_count"] = rx["units"]
+            checks["occupied_count"] = rx["occupied"]
+            checks["total_sqft"] = rx["sqft"]
+            src.update(unit_count="re-extract", occupied_count="re-extract",
+                       total_sqft="re-extract")
+        printed = (totals_row is not None) and {
+            "market": self._num(cell(totals_row, "market rent")),
+            "charges": self._num(cell(totals_row, "charges")),
+            "deposits": self._num(cell(totals_row, "deposit"))}
+        if not printed:
+            sys.exit("ERROR: the sheet prints no totals row - nothing to "
+                     "reconcile the parse against.")
+        checks["total_market_rent"] = printed["market"]
+        checks["total_contract_rent"] = printed["charges"]
+        checks["current_lease_charges"] = printed["charges"]
+        checks["total_deposits"] = printed["deposits"]
+        for k in ("total_market_rent", "total_contract_rent",
+                  "current_lease_charges", "total_deposits"):
+            src[k] = "printed totals row"
+        checks["_src"] = src
+
+        extra = []
+        if rx:
+            extra += [
+                ("Total market rent (2nd pass, raw-XML re-extract)",
+                 lambda us: sum(u.market_rent or 0 for u in us),
+                 rx["market"], 0.01),
+                ("Total contract rent (2nd pass, raw-XML re-extract)",
+                 lambda us: sum(u.primary.rent_charge or 0 for u in us
+                                if u.primary and not u.is_vacant),
+                 rx["rent"], 0.01),
+                ("All charges booked (2nd pass, raw-XML re-extract)",
+                 lambda us: sum(r.total_charges for u in us
+                                for r in u.residents),
+                 rx["charges"], 0.01),
+                ("Total security deposits (2nd pass, raw-XML re-extract)",
+                 lambda us: sum(r.deposit or 0 for u in us
+                                for r in u.residents),
+                 rx["deposits"], 0.01),
+                ("Rent charges booked (one per occupied unit)",
+                 lambda us: sum(1 for u in us for r in u.residents
+                                if r.rent_charge is not None),
+                 rx["rent_rows"], 0.5),
+                ("Non-rent charges booked (count; the menu carries none)",
+                 lambda us: sum(1 for u in us for r in u.residents
+                                for c, a, _ in r.charges
+                                if not RENT_CODES.search(c)),
+                 rx["other_rows"], 0.5),
+            ]
+        extra.append(
+            ("Other Income booked (empty charge menu -> nothing)",
+             lambda us: sum(r.other_income or 0 for u in us
+                            for r in u.residents), 0.0, 0.001))
+        checks["extra_checks"] = extra
+
+        self.flags.append(
+            "the sheet prints NO as-of date and NO property name - both came "
+            "from the command line (--asof / --property), not the source")
+        return prop, None, units, checks
+
+    # -- one unit block ------------------------------------------------------
+
+    def _build(self, unit, brows, cell):
+        first = brows[0]
+        sqft = self._num(cell(first, "sq ft"))
+        occ_txt = self._txt(cell(first, "occupancy")).lower()
+        vacant = (not occ_txt) or any(occ_txt.startswith(w)
+                                      for w in self.VACANT_WORDS)
+        if occ_txt and not vacant and not occ_txt.startswith("occ"):
+            self.flags.append(f"unit {unit}: unrecognised Occupancy value "
+                              f"'{self._txt(cell(first, 'occupancy'))}' - "
+                              "treated as occupied")
+
+        # ---- col A: tier words + unlabelled dates --------------------------
+        words, dates = [], []
+        for r in brows:
+            v = cell(r, "unit type")
+            if isinstance(v, (datetime, date)):
+                dates.append(v.date() if isinstance(v, datetime) else v)
+            else:
+                t = self._txt(v)
+                if t:
+                    words.append(t.upper())
+        if dates:
+            self.col_a_dates[unit] = dates
+        tier = next((w for w in words if w in self.TIERS), "")
+        quals = [w for w in words if w in self.QUALIFIERS]
+        unknown = [w for w in words
+                   if w not in self.TIERS and w not in self.QUALIFIERS]
+        if not tier:
+            self.flags.append(f"unit {unit}: no tier word (" +
+                              "/".join(self.TIERS) +
+                              ") in the Unit Type column - floor plan blank")
+        if unknown:
+            self.flags.append(f"unit {unit}: unrecognised Unit Type word(s) "
+                              + ", ".join(unknown) + " - not used in the "
+                              "floor-plan name")
+        fp = ""
+        if tier:
+            size = self.SQFT_LABELS.get(sqft)
+            if size is None and sqft is not None:
+                size = f"{sqft:g}sf"
+            label = tier.title()
+            if quals and self.PATIO_AS_PLAN:
+                label += " " + " ".join(q.title() for q in quals)
+            fp = self.PLAN_TEMPLATE.format(size=size or "",
+                                           tier=label).strip()
+        if quals and not self.PATIO_AS_PLAN:
+            self.flags.append(f"unit {unit}: carries {', '.join(quals)} in the "
+                              "Unit Type column; rolled into the base tier "
+                              "plan (PATIO_AS_PLAN = False)")
+
+        u = UnitRecord(unit=unit, floor_plan=fp, sqft=sqft,
+                       apt_status="VU" if vacant else "OC",
+                       market_rent=self._num(cell(first, "market rent")),
+                       # The tier IS a renovation status stated by the source,
+                       # so it goes in the Renovation Status column (col G /
+                       # rediQ RenovationString) as well as the plan name -
+                       # in the name it is only a substring of a label, which
+                       # nothing can filter or import on.
+                       renovation_status=tier.title() if tier else "",
+                       bed_explicit=None, bath_explicit=None,
+                       bed_bath_explicit=True)
+
+        # ---- residents (names only; phone numbers are not occupants) -------
+        names, phones = [], []
+        for r in brows:
+            t = self._txt(cell(r, "resident"))
+            if not t:
+                continue
+            if self.PHONE.match(t.replace(" ", "")) or self.PHONE.match(t):
+                phones.append(t)
+            else:
+                names.append(t)
+        if phones:
+            self.phone_cells[unit] = phones
+
+        # ---- charges: only rows with a real amount are charges -------------
+        charges = []
+        for r in brows:
+            code = self._txt(cell(r, "charge code"))
+            if not code:
+                continue
+            amt = self._num(cell(r, "charges"))
+            key = code.rstrip(" ,.")
+            if amt is None:
+                self.menu_codes[key] = self.menu_codes.get(key, 0) + 1
+            elif amt == 0:
+                self.zero_codes[key] = self.zero_codes.get(key, 0) + 1
+            else:
+                charges.append((code, amt, False))
+        rents = [c for c in charges if RENT_CODES.search(c[0])]
+        if not vacant and not rents:
+            self.flags.append(f"unit {unit}: occupied but no Rent charge with "
+                              "an amount - Contractual Rent left blank")
+        if len(rents) > 1:
+            self.flags.append(f"unit {unit}: {len(rents)} Rent charges in the "
+                              "block - all summed into Contractual Rent")
+        if vacant and charges:
+            self.flags.append(f"unit {unit}: marked vacant but carries "
+                              "charges - charges excluded")
+            charges = []
+
+        # ---- deposits: summed over the whole block -------------------------
+        deps = [self._num(cell(r, "deposit")) for r in brows]
+        deps = [d for d in deps if d is not None]
+        if len(deps) > 1:
+            self.split_deposits[unit] = deps
+        notes = [self._txt(cell(r, "deposit notes")) for r in brows]
+        notes = [n for n in notes if n]
+        if notes:
+            self.deposit_notes[unit] = notes
+
+        # ---- dates / stated lease term -------------------------------------
+        def firstval(key, conv):
+            for r in brows:
+                v = conv(cell(r, key))
+                if v is not None:
+                    return v
+            return None
+
+        move_in = firstval("move-in date", self._d)
+        lease_start = firstval("lease start", self._d)
+        lease_end = firstval("lease end", self._d)
+        term = ""
+        raw_end = next((self._txt(cell(r, "lease end")) for r in brows
+                        if self._txt(cell(r, "lease end"))), "")
+        if lease_end is None and raw_end:
+            if self.MONTHLY_TERM.match(raw_end):
+                # House rule: MTM is never INFERRED (not from an expired lease,
+                # not from the standing amount-less 'MTM' menu row). This is
+                # not an inference - the source states the lease term in words
+                # in its own Lease End cell. Recorded as MTM with the Lease
+                # Expiration left blank, and flagged so the call is visible.
+                term = "MTM"
+                self.flags.append(
+                    f"unit {unit}: Lease End is the literal word '{raw_end}' - "
+                    "the source STATES a month-to-month term, so MTM = Yes and "
+                    "Lease Expiration is left blank. (The standing 'MTM' menu "
+                    "row carries no amount and was NOT used as an MTM signal, "
+                    "per the house rule that MTM comes only from an explicit "
+                    "month-to-month fee.)")
+            else:
+                self.flags.append(
+                    f"unit {unit}: Lease End is the non-date text '{raw_end}' "
+                    "- left blank rather than interpreted")
+
+        if not vacant:
+            u.residents.append(Resident(
+                name=" & ".join(names), status="C", charges=charges,
+                move_in=move_in, lease_start=lease_start,
+                lease_expires=lease_end, term_type=term,
+                deposit=sum(deps) if deps else None))
+        elif deps:
+            u.residents.append(Resident(name=" & ".join(names), status="X",
+                                        deposit=sum(deps)))
+        return u
+
+    def source_note(self, asof):
+        d = asof.strftime("%m/%d/%Y") if asof else "unknown date"
+        return (f"Generated from an owner-prepared rent roll workbook with "
+                f"multi-row unit blocks ({d}; as-of date supplied externally "
+                f"(--asof) - the sheet prints none). Contractual Rent = the "
+                "'Rent' charge; every other charge code on the sheet is a "
+                "standing menu printed with an EMPTY amount, so Other Income, "
+                "concessions and discounts are genuinely nil, not zeroed. "
+                "Net Sf, Market Rent, lease dates and deposits are the "
+                "sheet's own; deposits split across a block's rows are "
+                "summed. The sheet carries no bed/bath anywhere - those "
+                "columns are filled only from a cited source via --bedbath.")
+
+
 # Detection order matters. OneSite first (its detect() keys on the report's
 # own product banner + title). ResManSummary before ResMan: the full-roll
 # ResMan detect() ('ResMan' + 'Rent Roll') also matches a Rent Roll Summary,
@@ -3897,12 +4587,19 @@ class AppFolioUnitTypeXlsxParser(RentRollParser):
 # loosest of the three, so it only claims a PDF nothing else recognises.
 PARSERS = [BuildiumRentRollParser, OneSiteRentsParser, ResManSummaryParser,
            ResManParser, SSI410Parser, OwnerSheetPdfParser]
-# AppFolioUnitTypeXlsxParser first: it demands the full Unit Type / Sqft /
+# OwnerBlockRentRollXlsxParser first: it is the strictest of the four - it
+# demands all twelve of its owner-sheet headers ("Unit #"/"Occupancy"/"Charge
+# Code"/"Charges"/"Deposit"/"Lease End"...) in ONE row AND multi-row unit
+# blocks under it. No PM export satisfies both halves: AppFolio (either
+# variant) prints "Unit"/"BD/BA"/"Tenant" one row per unit, and Yardi's
+# two-row header joins to "unit"/"amount", never "unit #"/"charges" - checked
+# both ways, none of them can steal another's file.
+# AppFolioUnitTypeXlsxParser next: it demands the full Unit Type / Sqft /
 # Recurring Charges column set, which the Status-column AppFolio export does
 # not have, so it cannot steal it (and AppFolioXlsxParser's own detect needs a
 # 'status' column this layout does not print - checked both ways).
-XLSX_PARSERS = [AppFolioUnitTypeXlsxParser, AppFolioXlsxParser,
-                YardiRentRollXlsxParser]
+XLSX_PARSERS = [OwnerBlockRentRollXlsxParser, AppFolioUnitTypeXlsxParser,
+                AppFolioXlsxParser, YardiRentRollXlsxParser]
 
 
 
@@ -4415,7 +5112,8 @@ def write_workbook_from_template(path, template, prop, asof, units,
                 lease_exp = dt(fut.lease_expires)
             elif p and p.lease_expires:
                 lease_exp = dt(p.lease_expires)
-            values = [u.unit, u.floor_plan, u.sqft, bed, bath, "", "", occ,
+            values = [u.unit, u.floor_plan, u.sqft, bed, bath, "",
+                      u.renovation_status or "", occ,
                       u.market_rent, "", "", 0, "", "", "", "", "",
                       lease_exp, "", None, "", "", notice]
         else:
@@ -4427,7 +5125,7 @@ def write_workbook_from_template(path, template, prop, asof, units,
             ner = ((rent or 0) + (rconc or 0) + (disc or 0)) \
                 if rent is not None else 0
             values = [u.unit, u.floor_plan, u.sqft, bed, bath,
-                      u.lease_type or "", "", occ,
+                      u.lease_type or "", u.renovation_status or "", occ,
                       u.market_rent,
                       rent if rent is not None else "",
                       rconc if rconc is not None else "",
@@ -4468,7 +5166,13 @@ def write_workbook_from_template(path, template, prop, asof, units,
             # answer -- the per-unit values on the Rent Roll tab are the truth)
             lts = {u.lease_type for u in units if u.floor_plan == fp}
             fps_ws[f"B{r}"] = lts.pop() if len(lts) == 1 else ""
-            fps_ws[f"C{r}"] = ""
+            # Renovated (col C) rolls up on the same rule as Lease Type: only
+            # when every unit in the plan states the same renovation tier. A
+            # plan with a mix has no single answer -- the per-unit values on
+            # the Rent Roll tab (col G) stay the truth. Feeds the Floor Plan
+            # tab's "Renov. Status" column.
+            rvs = {u.renovation_status for u in units if u.floor_plan == fp}
+            fps_ws[f"C{r}"] = rvs.pop() if len(rvs) == 1 else ""
             fps_ws[f"D{r}"] = bed
             fps_ws[f"E{r}"] = bath
         else:
@@ -4595,7 +5299,7 @@ def write_workbook(path, prop, asof, units, source_note=""):
             elif p and p.lease_expires:
                 lease_exp = dt(p.lease_expires)
             values = [u.unit, u.floor_plan, u.sqft, bed, bath,
-                      u.lease_type or "", "", occ,
+                      u.lease_type or "", u.renovation_status or "", occ,
                       u.market_rent, "", "", 0, "", "", "", "", "",
                       lease_exp, "", None, "", "", notice]
         else:
@@ -4611,7 +5315,7 @@ def write_workbook(path, prop, asof, units, source_note=""):
             ner = ((rent or 0) + (rconc or 0) + (disc or 0)) \
                 if rent is not None else 0
             values = [u.unit, u.floor_plan, u.sqft, bed, bath,
-                      u.lease_type or "", "", occ,
+                      u.lease_type or "", u.renovation_status or "", occ,
                       u.market_rent,
                       rent if rent is not None else "",
                       rconc if rconc is not None else "",
@@ -4768,10 +5472,15 @@ def _add_floor_plan_sheets(wb, units, last):
         r = 3 + i
         bed, bath = next((u.bed_bath for u in units if u.floor_plan == fp),
                          (None, None))
+        # Lease Type / Renovated roll up only when every unit in the plan
+        # agrees (same rule as write_workbook_from_template).
+        lts = {u.lease_type for u in units if u.floor_plan == fp}
+        rvs = {u.renovation_status for u in units if u.floor_plan == fp}
         vals = {
             # A-E: identity columns (values; source template pulled these
             # from the excluded 'Bed-Bath Type' tab)
-            "A": fp, "B": "", "C": "", "D": bed, "E": bath,
+            "A": fp, "B": lts.pop() if len(lts) == 1 else "",
+            "C": rvs.pop() if len(rvs) == 1 else "", "D": bed, "E": bath,
             # F-G: live aggregates from the Rent Roll tab
             "F": f"=AVERAGEIFS({RR}!C:C,{RR}!B:B,$A{r})",
             "G": f"=COUNTIF({RR}!$B:$B,$A{r})",
@@ -5000,7 +5709,7 @@ def reconcile(units, checks):
           key="unit_count")
     if checks.get("total_sqft") is not None:
         check("Total sq ft", sum(u.sqft or 0 for u in units),
-              checks.get("total_sqft"))
+              checks.get("total_sqft"), key="total_sqft")
     occ = [u for u in units if not u.is_vacant]
     vac = [u for u in units if u.is_vacant]
     check("Occupied units", len(occ), checks.get("occupied_count"), tol=0.5,
@@ -5043,7 +5752,7 @@ def reconcile(units, checks):
         check("Total security deposits",
               sum(r.deposit or 0 for u in units for r in u.residents
                   if r.status.upper() in ("C", "N")),
-              checks.get("total_deposits"))
+              checks.get("total_deposits"), key="total_deposits")
     if checks.get("total_other_deposits") is not None:
         check("Total other deposits",
               sum(r.other_deposit or 0 for u in units for r in u.residents

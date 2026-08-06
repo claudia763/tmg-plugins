@@ -231,6 +231,61 @@ files them as checks labelled "re-extract", so the reconciliation block
 still has something real to tie to. Per-check provenance prints in that
 block ("vs report" / "vs re-extract" / "vs printed totals row").
 
+### Owner-made rent roll XLSX with multi-row unit blocks (`OwnerBlockRentRollXlsxParser`)
+
+Added for Magnolia Place (Brenham TX, 20 doors, 7/2026); registered FIRST in
+`XLSX_PARSERS`. One sheet, a free-text title band, then a single header row:
+Unit Type | Unit # | Sq Ft | Occupancy | Resident | Market Rent | Charge Code |
+Charges | Move-in Date | Lease Start | Lease End | Deposit | Deposit Notes |
+Renewal | NTV. **Detection** demands all twelve of those headers in ONE row
+*and* the multi-row block structure (>=2 rows carrying a charge code but no
+Unit # under a row that has one) — neither AppFolio variant nor Yardi can
+satisfy both halves, and none of their headers satisfies the first
+(regression-checked both ways).
+
+Layout gotchas:
+
+- **Each unit is a BLOCK of 5–7 rows.** The first row carries identity, dates,
+  deposit, market rent, the first resident and the `Rent` charge; the rows
+  below carry the rest of the charge codes, extra occupant names and extra
+  Unit Type words.
+- **Col A is not one field.** It holds an UNLABELLED DATE on the block's first
+  row and the tier word (PREMIUM / CLASSIC / PARTIAL, plus PATIO where
+  present) one or two rows down. The date is reported verbatim as an owner
+  annotation and never written to Floor Plan.
+- **The charge column is a standing MENU, not a bill.** Every block prints the
+  same codes (Pet / Patio / NEW CREDIT / MISC. FEE / MTM / Late Fee, with
+  typo and trailing-space variants) with EMPTY amounts; only `Rent` carries a
+  number. Menu rows book nothing — a $0 Other Income charge would be an
+  invented charge — and an explicit printed `0.00` is treated the same way and
+  reported separately.
+- **The amount-less `MTM` menu row is NOT an MTM signal** (house rule). A
+  literal term word in the Lease End cell ("Monthly") IS an explicit statement
+  by the source: it sets `term_type="MTM"`, leaves Lease Expiration blank, and
+  is FLAGged.
+- **The Resident column mixes names and phone numbers**; phone cells are not
+  occupants, are excluded from the name, and are reported per unit.
+- **A deposit may be split across two rows of a block** (summed) and a unit may
+  print none at all (stays blank, never 0 — the sheet's own deposit total
+  excludes it, which is what ties out).
+- **No as-of date, no property name, no bed/bath.** `asof_found = False` makes
+  `--asof` mandatory; `--property` supplies the name; bed/bath is marked
+  explicit-and-blank so the floor-plan-code guess can never fire and arrives
+  only via `--bedbath`/`--bedbath-est`.
+- **Floor-plan naming is a class-level knob.** A plan is (sq ft, tier[, PATIO])
+  because the tier words alone span two sizes. `SQFT_LABELS` supplies the
+  leading token — empty gives "500sf Premium", `{500: "1x1", 850: "2x1"}`
+  gives TMG's house naming "1x1 Premium"; `PLAN_TEMPLATE` and `PATIO_AS_PLAN`
+  (patio as its own plan vs folded into the base tier) sit next to it.
+- The sheet prints only a Market Rent / Charges / Deposit totals row and no
+  unit count, so `parse` ALWAYS re-derives unit count, occupied count, sq ft
+  and all three money totals through a second, fully independent path
+  (`_reextract`: raw worksheet XML out of the zip container — openpyxl and the
+  block assembler are not reachable from it) and files them as "re-extract"
+  checks. 14 checks at Magnolia Place, including counts of rent and non-rent
+  charges booked, so a wrongly-booked $0 menu row fails the block
+  (fault-injection-validated).
+
 ### Rent roll flags that interact with formats
 
 - `--asof YYYY-MM-DD` — sets/overrides the as-of date. A parser that
@@ -357,6 +412,47 @@ every section roll-up vs its account detail month by month; TOTAL INCOME and
 TOTAL EXPENSE vs their section roll-ups and NOI vs income less expense, month
 by month. All three layers abort unless `--trust-monthly` (65 rows, 9 sections
 and 3 grand rows all tie at Eclipse).
+
+### Owner-made CALENDAR-YEAR TABS statement XLSX (`parse_t12_owner_calendar_year_tabs`)
+
+Via `_is_owner_calendar_year_tabs`, registered FIRST in `T12_XLSX_PARSERS`;
+added for Magnolia Place, Brenham TX, 8/6/2026 (20 units). One tab per
+calendar year, tabs literally NAMED "2025"/"2026", each with `A1` =
+"Category", `January`..`December` in B..M and an annual total column at N.
+Detection requires all three (>= 2 year-named tabs + Category + the full month
+header), so it cannot collide with any other dialect and a single-year export
+of the same layout falls through to the generic `parse_t12_xlsx`.
+
+- **The total-column caption lies.** Magnolia captions col N "Total 2025" on
+  BOTH tabs; on the 2026 tab it is really the 2026 total. The tab NAME and the
+  month header are the truth — never the caption.
+- **One tab is not a T-12.** The trailing twelve months usually span two tabs
+  and are stitched month by month from the tab owning each month's calendar
+  year. The window ends at the last month carrying real OPERATING data;
+  below-the-line rows are excluded from that test because the Mortgage row is
+  pre-filled twelve months ahead and would otherwise claim December.
+- **Zero-printed section headers.** ALL-CAPS rows are ambiguous: "REPAIRS &
+  MAINTENANCE" prints a row of zeros on one tab and is blank on the other
+  (header), while "PAYROLL"/"MANAGEMENT FEES"/"UTILITIES" are single-line
+  ACCOUNTS. The test is structural — an ALL-CAPS all-zero row followed
+  immediately by a non-ALL-CAPS, non-"Total" row is a header.
+- **Hand-typed labels drift between tabs.** Whitespace is normalized first
+  ("Registered Agent Fees " == "Registered Agent Fees"), then remaining
+  near-duplicates INSIDE THE SAME SECTION merge at >= 0.90 whole-string
+  similarity ("Restripping" / "Restriping Parking Lot"); every merge is
+  printed. The match key carries the section, so the operating "Plumbing
+  Repairs" can never merge with the CapEx "Plumbing Repairs".
+- An account on only one tab contributes genuinely BLANK months (`Line.empty`)
+  for the other tab's span — never zeros — and is named in the run output.
+- Below printed NOI: a "CAPEX EXPENSES" block with its own repeated month
+  header, "Total CapEx", "Mortgage" and memo rows -> Capex & Misc.
+- Four verification layers, all aborting unless `--trust-monthly`: (a) every
+  row's twelve cells vs its printed annual column, per tab, over the full
+  calendar year; (b) TOTAL RENTAL INCOME / TOTAL INCOME / TOTAL EXPENSES /
+  NET OPERATING INCOME vs their own detail per tab per month, then the same
+  four identities re-checked on the STITCHED window; (c) Total CapEx vs the
+  capex detail per month and per year; (d) the window's parsed grand totals vs
+  the sum of the printed grand rows over those twelve months.
 
 ### Owner-made "Rental schedule" operating statement (.xls/.xlsx) (`parse_t12_owner_rental_schedule`)
 

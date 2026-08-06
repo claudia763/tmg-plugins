@@ -42,6 +42,7 @@ warnings.filterwarnings("ignore")
 import pdfplumber
 from openpyxl import load_workbook
 from openpyxl.worksheet.formula import ArrayFormula
+from openpyxl.utils import get_column_letter
 
 from difflib import SequenceMatcher
 
@@ -113,6 +114,13 @@ SECTION_ALLOWED = [
     # sit under a Utilities section to Administrative
     (re.compile(r"utilit", re.I), {"w", "tr", "e", "o", "ad"}),
     (re.compile(r"management fee", re.I), {"mf"}),
+    # A section that names BOTH taxes and insurance ("TAXES & INSURANCE" on
+    # owner-made books) legally holds both codes. It must be tested before the
+    # plain tax rule below, which would otherwise constrain the section to
+    # {tx} and force every property-insurance line into a REVIEW conflict
+    # (same shape as the FIXED ADMINISTRATIVE rule above).
+    (re.compile(r"tax(es)?\s*(&|and|/)\s*insurance"
+                r"|insurance\s*(&|and|/)\s*tax(es)?", re.I), {"i", "tx"}),
     (re.compile(r"^tax|taxes", re.I), {"tx"}),
     (re.compile(r"insurance", re.I), {"i"}),
 ]
@@ -3364,9 +3372,680 @@ def parse_t12_resman_trailing_xlsx(path, trust_monthly=False,
         lines_out, row_fails, trust_monthly, _GRAND_PATS_RESMAN_TR)
 
 
+# ----------------------------------------------------------------------------
+# Owner-made CALENDAR-YEAR TABS operating statement (.xlsx)
+# ----------------------------------------------------------------------------
+# Added for Magnolia Place, Brenham TX, 8/6/2026 (20 units, owner/bookkeeper
+# workbook, one tab per calendar year).
+#
+#   sheet names  four-digit YEARS ("2025", "2026") - one tab per calendar year,
+#                identical layout on every tab.
+#   row 1        col A "Category", cols B..M "January".."December", col N an
+#                annual total column.
+#                *** THE TOTAL COLUMN CAPTION LIES.*** Magnolia Place captions
+#                col N "Total 2025" on BOTH tabs - the 2026 tab's total is
+#                really the 2026 calendar-year total. Detection and windowing
+#                key off the SHEET NAME and the month header, never the caption.
+#   body         ALL-CAPS section headers with no values ("RENTAL INCOME",
+#                "OTHER INCOME", "EXPENSES", "GENERAL & ADMINISTRATIVE",
+#                "CONTRACT SERVICES", "REPAIRS & MAINTENANCE",
+#                "TAXES & INSURANCE", "MARKETING") mixed with ALL-CAPS rows
+#                that ARE single-line accounts ("MANAGEMENT FEES", "UTILITIES",
+#                "PAYROLL"). Printed roll-ups: "TOTAL RENTAL INCOME",
+#                "TOTAL INCOME", "TOTAL EXPENSES", "NET OPERATING INCOME".
+#   below NOI    a "CAPEX EXPENSES" block with its OWN repeated month header
+#                row, a "Total CapEx" roll-up, a "Mortgage" row and memo rows
+#                ("Units Rehabbed") -> Capex & Misc workbook.
+#
+# Layout gotchas baked in here:
+#
+# * A ZERO-PRINTED SECTION HEADER. The 2025 tab prints "REPAIRS & MAINTENANCE"
+#   as a row of zeros before its detail while the 2026 tab leaves the same row
+#   blank; "PAYROLL" prints an identical row of zeros but IS an account (no
+#   detail follows it). Neither the caption nor the values can tell them apart,
+#   so the test is structural: an ALL-CAPS all-zero row followed immediately by
+#   a non-ALL-CAPS, non-"Total" row is a header, otherwise it is an account.
+# * ONE TAB IS NOT A T-12. The trailing twelve months here (Jul-2025..Jun-2026)
+#   SPAN TWO TABS, so the window is stitched: each window month is read from
+#   the tab for its own calendar year. The window ends at the last month
+#   carrying real OPERATING data (Jul-Dec 2026 are hard zeros on the 2026 tab);
+#   below-the-line rows are deliberately ignored for that test because the
+#   Mortgage row is pre-filled 12 months ahead and would otherwise claim
+#   December.
+# * ACCOUNTS ARE MATCHED BY NAME ACROSS TABS, and hand-typed labels drift.
+#   Whitespace is normalized first ("Registered Agent Fees " on 2025 vs
+#   "Registered Agent Fees" on 2026 are the SAME account), then remaining
+#   near-duplicates inside the same section are merged on a >= 0.90
+#   whole-string similarity ("Restripping Parking Lot" / "Restriping Parking
+#   Lot") - every merge is printed, never silent. The match key carries the
+#   SECTION as well as the name, so the operating "Plumbing Repairs" (Repairs &
+#   Maintenance) can never be merged with the capitalised "Plumbing Repairs"
+#   in the CapEx block.
+# * An account present on one tab and absent from the other contributes
+#   genuinely BLANK months for the other tab's span (Line.empty), never zeros -
+#   and every such account is named in the run output.
+#
+# Verification (all four layers, abort unless --trust-monthly):
+#   a) every row on every tab: its twelve monthly cells vs its printed annual
+#      column, over the FULL calendar year, before any windowing;
+#   b) per tab and per month: TOTAL RENTAL INCOME vs the rental detail,
+#      TOTAL INCOME vs TOTAL RENTAL INCOME + other-income detail, TOTAL
+#      EXPENSES vs all expense detail, NET OPERATING INCOME vs income less
+#      expense - then the same four identities AGAIN on the stitched window
+#      (that is what proves the stitch, not just the tabs);
+#   c) "Total CapEx" vs the capex detail, per month and per year;
+#   d) the window's parsed Total Revenue / Total OpEx / NOI vs the sum over the
+#      twelve windowed months of the statement's own printed grand rows
+#      (via _xlsx_grand_finalize).
+
+_GRAND_PATS_OWNER_CY = {
+    "rev": r"^total\s+income$",
+    "exp": r"^total\s+(operating\s+)?expenses?$",
+    "noi": r"^net\s+operating\s+income$",
+    "drop": r"^total\s+income$|^total\s+(operating\s+)?expenses?$"
+            r"|^net\s+operating\s+income$",
+}
+
+_OWNER_CY_MONTH_NAMES = ["january", "february", "march", "april", "may",
+                         "june", "july", "august", "september", "october",
+                         "november", "december"]
+_OWNER_CY_SIM = 0.90        # near-duplicate label threshold across year tabs
+_OWNER_CY_EPS = 0.005
+
+
+def _owner_cy_key(s):
+    """Whitespace/case-normalized match key for a hand-typed label."""
+    return re.sub(r"\s+", " ", str(s or "")).strip().lower()
+
+
+def _owner_cy_num(v):
+    if v is None:
+        return None
+    if isinstance(v, str):
+        s = v.strip().replace(",", "").replace("$", "")
+        if not s:
+            return None
+        neg = s.startswith("(") and s.endswith(")")
+        try:
+            f = float(s.strip("()"))
+        except ValueError:
+            return None
+        return -f if neg else f
+    if isinstance(v, bool):
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _owner_cy_year_sheets(path):
+    """[(year, sheet_name, rows)] for every sheet whose NAME is a four-digit
+    year AND whose row 1 is 'Category' + January..December in cols B..M.
+    Sorted by year. Empty list when the workbook is not this dialect."""
+    from openpyxl import load_workbook as _lw
+    try:
+        wb = _lw(path, read_only=True, data_only=True)
+    except Exception:
+        return []
+    out = []
+    try:
+        for name in wb.sheetnames:
+            if not re.fullmatch(r"(19|20)\d{2}", str(name).strip()):
+                continue
+            ws = wb[name]
+            rows = [list(r) for r in ws.iter_rows(values_only=True)]
+            if not rows or len(rows[0]) < 13:
+                continue
+            hdr = rows[0]
+            if _owner_cy_key(hdr[0]) != "category":
+                continue
+            if [_owner_cy_key(hdr[j]) for j in range(1, 13)] != \
+                    _OWNER_CY_MONTH_NAMES:
+                continue
+            out.append((int(str(name).strip()), str(name), rows))
+    finally:
+        try:
+            wb.close()
+        except Exception:
+            pass
+    out.sort(key=lambda t: t[0])
+    return out
+
+
+def _is_owner_calendar_year_tabs(path):
+    """True only for the owner calendar-year-tabs workbook: TWO OR MORE sheets
+    named as four-digit years, each with A1 == 'Category' and a full
+    January..December header in cols B..M.
+
+    Deliberately narrow. Every other registered xlsx dialect fails at least two
+    of those three tests: Yardi/OneSite/AppFolio/ResMan all ship a single
+    report sheet with a report title (not a bare year) and dated or
+    'Mon YYYY'-captioned month headers, and the generic owner layout
+    (parse_t12_xlsx) captions its months with a YEAR ("June-2025") and its
+    totals column TOTAL/TOTALS. Requiring >= 2 year-named tabs also means a
+    single-year export of this same layout is left to the generic parser rather
+    than stolen by a stitcher that has nothing to stitch."""
+    if not str(path).lower().endswith((".xlsx", ".xlsm")):
+        return False
+    return len(_owner_cy_year_sheets(path)) >= 2
+
+
+def _owner_cy_parse_sheet(year, rows):
+    """One calendar-year tab -> a structured statement.
+
+    Returns a dict with the ordered body rows plus the positional groups the
+    printed roll-ups are checked against."""
+    hdr = rows[0]
+    tot_col = None
+    for j in range(13, len(hdr)):
+        if re.match(r"^total\b", str(hdr[j] or "").strip(), re.I):
+            tot_col = j
+            break
+
+    # ---- raw body rows ---------------------------------------------------
+    body, strays = [], []
+    for i, r in enumerate(rows[1:], start=2):
+        name = re.sub(r"\s+", " ", str(r[0] or "")).strip()
+        vals = [_owner_cy_num(r[j]) if j < len(r) else None
+                for j in range(1, 13)]
+        annual = (_owner_cy_num(r[tot_col])
+                  if tot_col is not None and tot_col < len(r) else None)
+        if not name:
+            # A row with no label but stray content: never guessed at, always
+            # reported (Magnolia carries 'Unit 9' memos and two loose numbers).
+            loose = [(j, v) for j, v in enumerate(r)
+                     if v is not None and str(v).strip() != ""]
+            if loose:
+                strays.append((i, "; ".join(
+                    f"{get_column_letter(j + 1)}{i}={v!r}" for j, v in loose)))
+            continue
+        body.append({"row": i, "name": name, "raw": str(r[0]),
+                     "vals": vals, "annual": annual})
+
+    # ---- classify --------------------------------------------------------
+    out, section, section_key, side = [], "", "", "inc"
+    for i, b in enumerate(body):
+        name = b["name"]
+        vals, annual = b["vals"], b["annual"]
+        has_vals = any(v is not None for v in vals)
+        is_total = bool(re.match(r"^total\b", name, re.I))
+        is_noi = bool(re.search(r"\bNOI\b|net operating income", name, re.I))
+        caps = name.isupper()
+
+        # zero-printed section header (2025 'REPAIRS & MAINTENANCE') vs a real
+        # all-zero single-line account (2025 'PAYROLL'): structural test only.
+        if has_vals and caps and not is_total and not is_noi and \
+                not any(v for v in vals) and not annual:
+            nxt = body[i + 1]["name"] if i + 1 < len(body) else ""
+            if nxt and not nxt.isupper() and \
+                    not re.match(r"^total\b", nxt, re.I):
+                has_vals = False
+
+        if is_total or is_noi:
+            out.append({"kind": "subtotal", "name": name, "raw": b["raw"],
+                        "key": _owner_cy_key(name), "section": section,
+                        "section_key": section_key, "side": side,
+                        "vals": vals, "annual": annual, "row": b["row"]})
+            if re.match(r"^total\s+(operating\s+)?(income|revenue)s?$",
+                        name, re.I):
+                side = "exp"          # everything after the revenue grand row
+            continue
+        if not has_vals:
+            section, section_key = name, _owner_cy_key(name)
+            if re.fullmatch(r"(operating\s+)?(income|revenue)s?", name, re.I):
+                side = "inc"
+            elif re.search(r"expense", name, re.I) and \
+                    not re.search(r"income|revenue", name, re.I):
+                side = "exp"
+            out.append({"kind": "section", "name": name, "raw": b["raw"],
+                        "key": _owner_cy_key(name), "section": section,
+                        "section_key": section_key, "side": side,
+                        "vals": None, "annual": None, "row": b["row"]})
+            continue
+        # account (an ALL-CAPS single-line account is its own section)
+        sec = name if caps else section
+        out.append({"kind": "account",
+                    "name": name.title() if caps else name, "raw": b["raw"],
+                    "key": _owner_cy_key(name), "section": sec,
+                    "section_key": _owner_cy_key(sec), "side": side,
+                    "vals": vals, "annual": annual, "row": b["row"]})
+
+    # ---- below-the-line: everything after the printed NOI -----------------
+    seen_noi = False
+    for e in out:
+        e["below"] = seen_noi
+        if e["kind"] == "subtotal" and \
+                re.search(r"\bNOI\b|net operating income", e["name"], re.I):
+            seen_noi = True
+
+    # ---- positional groups the printed roll-ups are checked against -------
+    def _idx(pat, below=None):
+        for k, e in enumerate(out):
+            if e["kind"] == "subtotal" and re.fullmatch(pat, e["name"], re.I) \
+                    and (below is None or e["below"] == below):
+                return k
+        return None
+
+    i_tri = _idx(r"total\s+rental\s+income", below=False)
+    i_ti = _idx(r"total\s+income", below=False)
+    i_te = _idx(r"total\s+(operating\s+)?expenses?", below=False)
+    i_noi = _idx(r"net\s+operating\s+income", below=False)
+    i_cap = _idx(r"total\s+capex", below=True)
+    i_caphdr = None
+    for k, e in enumerate(out):
+        if e["kind"] == "section" and e["below"]:
+            i_caphdr = k
+            break
+
+    def _acc(lo, hi):
+        if lo is None or hi is None:
+            return []
+        return [e for e in out[lo + 1:hi] if e["kind"] == "account"]
+
+    return {
+        "year": year, "tot_col": tot_col, "rows": out, "strays": strays,
+        "i_tri": i_tri, "i_ti": i_ti, "i_te": i_te, "i_noi": i_noi,
+        "i_cap": i_cap,
+        "rental": _acc(-1, i_tri) if i_tri is not None else [],
+        "other": _acc(i_tri, i_ti),
+        "expense": _acc(i_ti, i_te),
+        "capex": _acc(i_caphdr, i_cap),
+        "sub": {e["key"]: e for e in out if e["kind"] == "subtotal"},
+    }
+
+
+def parse_t12_owner_calendar_year_tabs(path, trust_monthly=False,
+                                       allow_partial=False):
+    """Owner workbook with one tab per CALENDAR YEAR -> (prop, months, [Line]).
+
+    The trailing twelve months usually SPAN two tabs; the window is stitched
+    month by month from the tab owning each month's calendar year, matching
+    accounts by (section, normalized name) across tabs."""
+    sheets_raw = _owner_cy_year_sheets(path)
+    if len(sheets_raw) < 2:
+        sys.exit("ERROR: owner calendar-year-tabs parser needs at least two "
+                 "year-named sheets.")
+    sheets = {y: _owner_cy_parse_sheet(y, rows) for y, _n, rows in sheets_raw}
+    years = sorted(sheets)
+    print(f"  Owner calendar-year tabs: {len(years)} year sheet(s) "
+          f"({', '.join(str(y) for y in years)}); col A 'Category', "
+          f"January..December in B..M.")
+    for y in years:
+        sh = sheets[y]
+        if sh["tot_col"] is None:
+            sys.exit(f"ERROR: tab {y} has no annual total column right of "
+                     f"December - refusing to skip the row-total check.")
+        cap = str(sheets_raw[years.index(y)][2][0][sh["tot_col"]] or "").strip()
+        print(f"    tab {y}: annual total column "
+              f"{get_column_letter(sh['tot_col'] + 1)} captioned {cap!r}"
+              + ("  <- CAPTION DOES NOT MATCH THE TAB YEAR; the tab name and "
+                 "the month header are what this parser trusts."
+                 if str(y) not in cap else ""))
+        for rr, txt in sh["strays"]:
+            print(f"    tab {y}: unlabelled row {rr} ignored (no account "
+                  f"name): {txt}")
+
+    fails = []
+
+    # ---- (a) every row, every tab: 12 monthly cells vs printed annual -----
+    print("  [a] Row check - every row's twelve monthly cells vs its printed "
+          "annual column (full calendar year, before any windowing):")
+    for y in years:
+        n_ok = 0
+        bad = []
+        for e in sheets[y]["rows"]:
+            if e["vals"] is None or e["annual"] is None:
+                continue
+            got = sum(v or 0.0 for v in e["vals"])
+            n_ok += 1
+            if abs(got - e["annual"]) > 0.05:
+                bad.append((e["name"], got, e["annual"]))
+        print(f"      tab {y}: {n_ok} row(s) checked"
+              + (" - all tie." if not bad else f" - {len(bad)} MISMATCH."))
+        for nm, got, want in bad:
+            fails.append(f"ROW-CHECK MISMATCH [{y}] {nm}: months sum "
+                         f"{got:,.2f} vs printed annual {want:,.2f} "
+                         f"(variance {got - want:+,.2f})")
+
+    # ---- (b) printed roll-ups vs their own detail, per tab, per month -----
+    def _month_checks(label, sh, mrange, get):
+        """Four identities for one tab (or the stitched window)."""
+        rows = []
+        for tag, want_f, got_f in (
+            ("TOTAL RENTAL INCOME = rental detail",
+             lambda m: get("total rental income", m),
+             lambda m: sum(get(a, m) for a in sh["rental_keys"])),
+            ("TOTAL INCOME = TOTAL RENTAL INCOME + other income",
+             lambda m: get("total income", m),
+             lambda m: get("total rental income", m)
+             + sum(get(a, m) for a in sh["other_keys"])),
+            ("TOTAL EXPENSES = expense detail",
+             lambda m: get("total expenses", m),
+             lambda m: sum(get(a, m) for a in sh["expense_keys"])),
+            ("NET OPERATING INCOME = TOTAL INCOME - TOTAL EXPENSES",
+             lambda m: get("net operating income", m),
+             lambda m: get("total income", m) - get("total expenses", m)),
+        ):
+            bad = [m for m in mrange if abs(got_f(m) - want_f(m)) > 0.05]
+            rows.append((tag, len(mrange) - len(bad), len(mrange), bad,
+                         want_f, got_f))
+        print(f"      {label}:")
+        for tag, ok_n, tot_n, bad, want_f, got_f in rows:
+            print(f"        {ok_n}/{tot_n} month(s) tie   {tag}"
+                  + ("" if not bad else "   <- MISMATCH"))
+            for m in bad:
+                fails.append(f"SUBTOTAL MISMATCH [{label}] {tag} @ index {m}: "
+                             f"detail {got_f(m):,.2f} vs printed "
+                             f"{want_f(m):,.2f} "
+                             f"(variance {got_f(m) - want_f(m):+,.2f})")
+
+    print("  [b] Printed roll-ups vs their own monthly detail (per tab, all "
+          "twelve calendar months):")
+    for y in years:
+        sh = sheets[y]
+        sh["rental_keys"] = [e["key"] for e in sh["rental"]]
+        sh["other_keys"] = [e["key"] for e in sh["other"]]
+        sh["expense_keys"] = [e["key"] for e in sh["expense"]]
+        acc = {e["key"]: e for e in sh["rows"]
+               if e["kind"] in ("account", "subtotal") and not e["below"]}
+
+        def _get(key, m, _acc=acc):
+            e = _acc.get(key)
+            return 0.0 if e is None else (e["vals"][m] or 0.0)
+        _month_checks(f"tab {y}", sh, range(12), _get)
+
+    # ---- (c) Total CapEx vs capex detail, per month and per year ----------
+    print("  [c] 'Total CapEx' vs the capex detail (per month + annual):")
+    for y in years:
+        sh = sheets[y]
+        tot = sh["sub"].get("total capex")
+        if tot is None:
+            print(f"      tab {y}: no 'Total CapEx' row.")
+            continue
+        bad = []
+        for m in range(12):
+            got = sum(e["vals"][m] or 0.0 for e in sh["capex"])
+            if abs(got - (tot["vals"][m] or 0.0)) > 0.05:
+                bad.append((m, got, tot["vals"][m] or 0.0))
+        ann_got = sum(sum(e["vals"][m] or 0.0 for m in range(12))
+                      for e in sh["capex"])
+        ann_bad = tot["annual"] is not None and \
+            abs(ann_got - tot["annual"]) > 0.05
+        print(f"      tab {y}: {12 - len(bad)}/12 month(s) tie over "
+              f"{len(sh['capex'])} capex line(s); annual {ann_got:,.2f} vs "
+              f"printed {(tot['annual'] or 0.0):,.2f}"
+              + (" - all tie." if not bad and not ann_bad else " - MISMATCH."))
+        for m, got, want in bad:
+            fails.append(f"CAPEX MISMATCH [{y}] month {m + 1}: detail "
+                         f"{got:,.2f} vs printed Total CapEx {want:,.2f}")
+        if ann_bad:
+            fails.append(f"CAPEX MISMATCH [{y}] annual: detail {ann_got:,.2f} "
+                         f"vs printed {tot['annual']:,.2f}")
+
+    # ---- trailing window --------------------------------------------------
+    # The last month carrying real OPERATING data. Below-the-line rows are
+    # ignored on purpose: Magnolia's Mortgage row is pre-filled for all twelve
+    # months of 2026 and would otherwise claim December.
+    last_y = years[-1]
+    last_m = None
+    for m in range(11, -1, -1):
+        if any(abs(e["vals"][m] or 0.0) > _OWNER_CY_EPS
+               for e in sheets[last_y]["rows"]
+               if e["vals"] is not None and not e["below"]):
+            last_m = m
+            break
+    if last_m is None:
+        sys.exit(f"ERROR: the {last_y} tab carries no operating data at all.")
+    window = []
+    y, mo = last_y, last_m + 1
+    for _ in range(12):
+        window.append((y, mo))
+        mo -= 1
+        if mo < 1:
+            mo, y = 12, y - 1
+    window.reverse()
+    missing_years = sorted({wy for wy, _ in window if wy not in sheets})
+    if missing_years:
+        sys.exit("ERROR: the trailing-12 window needs tab(s) "
+                 f"{missing_years} which the workbook does not carry. "
+                 f"Window would be {window[0]} .. {window[-1]}.")
+    months = [datetime(wy, wm, 1) for wy, wm in window]
+    spans = {}
+    for wy, wm in window:
+        spans.setdefault(wy, []).append(wm)
+    print(f"  Trailing window: {months[0]:%b %Y} - {months[-1]:%b %Y} "
+          f"(last month carrying operating data on the {last_y} tab: "
+          f"{months[-1]:%b %Y}).")
+    for wy in sorted(spans):
+        print(f"      {datetime(wy, spans[wy][0], 1):%b %Y} - "
+              f"{datetime(wy, spans[wy][-1], 1):%b %Y} from tab '{wy}' "
+              f"({len(spans[wy])} month(s))")
+
+    # ---- merge the account union across the window's tabs -----------------
+    anchor_y = window[-1][0]
+    other_years = [wy for wy in sorted(spans) if wy != anchor_y]
+    merged, merges, ws_merges, only_in = [], [], [], {}
+
+    def _ident(e):
+        return (e["below"], e["section_key"], e["key"]) \
+            if e["kind"] == "account" else (e["below"], e["kind"], e["key"])
+
+    for e in sheets[anchor_y]["rows"]:
+        merged.append({"kind": e["kind"], "name": e["name"],
+                       "section": e["section"], "section_key": e["section_key"],
+                       "side": e["side"], "below": e["below"],
+                       "ident": _ident(e), "src": {anchor_y: e}})
+
+    def _find(ident):
+        for k, m in enumerate(merged):
+            if m["ident"] == ident:
+                return k
+        return None
+
+    for wy in other_years:
+        for e in sheets[wy]["rows"]:
+            ident = _ident(e)
+            k = _find(ident)
+            if k is None and e["kind"] == "account":
+                # near-duplicate hand-typed label inside the same section
+                best, best_s = None, 0.0
+                for kk, m in enumerate(merged):
+                    if m["kind"] != "account" or wy in m["src"]:
+                        continue
+                    if m["ident"][0] != ident[0] or m["ident"][1] != ident[1]:
+                        continue
+                    s = _whole(ident[2], m["ident"][2])
+                    if s > best_s:
+                        best, best_s = kk, s
+                if best is not None and best_s >= _OWNER_CY_SIM:
+                    k = best
+                    merges.append((wy, e["name"], anchor_y,
+                                   merged[k]["name"], best_s))
+            if k is not None:
+                a_raw = merged[k]["src"].get(anchor_y, {}).get("raw")
+                if a_raw is not None and a_raw != e["raw"] and \
+                        e["kind"] == "account" and \
+                        _owner_cy_key(a_raw) == _owner_cy_key(e["raw"]):
+                    ws_merges.append((wy, e["raw"], anchor_y, a_raw))
+                merged[k]["src"][wy] = e
+                continue
+            # new line: keep it inside its own section when that section
+            # exists, otherwise park it just before its side's grand row.
+            entry = {"kind": e["kind"], "name": e["name"],
+                     "section": e["section"], "section_key": e["section_key"],
+                     "side": e["side"], "below": e["below"],
+                     "ident": ident, "src": {wy: e}}
+            pos = None
+            if e["kind"] == "account":
+                hdr_k = None
+                for kk, m in enumerate(merged):
+                    if m["kind"] == "section" and m["below"] == e["below"] \
+                            and m["ident"][2] == e["section_key"]:
+                        hdr_k = kk
+                        break
+                if hdr_k is not None:
+                    # a section's account run ends at its own roll-up row, so
+                    # a late-added line lands INSIDE the section rather than
+                    # after the printed subtotal it has to be included in
+                    end = len(merged)
+                    for kk in range(hdr_k + 1, len(merged)):
+                        if merged[kk]["kind"] == "subtotal" and \
+                                merged[kk]["below"] == e["below"]:
+                            end = kk
+                            break
+                    pos = hdr_k + 1
+                    for kk in range(hdr_k + 1, end):
+                        if merged[kk]["kind"] == "account" and \
+                                merged[kk]["section_key"] == e["section_key"]:
+                            pos = kk + 1
+                else:
+                    for kk in range(len(merged) - 1, -1, -1):
+                        if merged[kk]["kind"] == "account" and \
+                                merged[kk]["below"] == e["below"] and \
+                                merged[kk]["section_key"] == e["section_key"]:
+                            pos = kk + 1
+                            break
+            if pos is None and not e["below"]:
+                pat = (r"total\s+income" if e["side"] == "inc"
+                       else r"total\s+(operating\s+)?expenses?")
+                for kk, m in enumerate(merged):
+                    if m["kind"] == "subtotal" and not m["below"] and \
+                            re.fullmatch(pat, m["name"], re.I):
+                        pos = kk
+                        break
+            if pos is None:
+                pos = len(merged)
+            merged.insert(pos, entry)
+
+    for m in merged:
+        if m["kind"] != "account":
+            continue
+        have = sorted(m["src"])
+        gone = [wy for wy in sorted(spans) if wy not in have]
+        if gone:
+            only_in.setdefault(tuple(gone), []).append(m["name"])
+
+    if ws_merges:
+        print(f"  MERGED whitespace-only label variants across tabs "
+              f"({len(ws_merges)}) - same account, different typing:")
+        for wy, a, ay, b in ws_merges:
+            print(f"      {a!r} [tab {wy}] == {b!r} [tab {ay}]")
+    if merges:
+        print(f"  MERGED near-duplicate labels across tabs "
+              f"({len(merges)}; whitespace normalized first, then >= "
+              f"{_OWNER_CY_SIM:.2f} whole-string similarity inside the same "
+              f"section) - never silent:")
+        for wy, a, ay, b, s in merges:
+            print(f"      '{a}' [tab {wy}] == '{b}' [tab {ay}]  "
+                  f"(similarity {s:.3f})")
+    else:
+        print("  MERGED near-duplicate labels across tabs: none needed beyond "
+              "whitespace normalization.")
+    for gone, names in sorted(only_in.items()):
+        print(f"  {len(names)} account(s) absent from tab(s) "
+              f"{', '.join(str(g) for g in gone)} - those months are written "
+              f"GENUINELY BLANK (never zero): " + "; ".join(sorted(names)))
+
+    # ---- build the windowed Line list -------------------------------------
+    lines_out = []
+    for m in merged:
+        if m["kind"] == "section":
+            ln = Line("section", m["name"], None, m["name"], m["side"])
+            ln.below = m["below"]
+            lines_out.append(ln)
+            continue
+        vals, mask = [], []
+        for k, (wy, wm) in enumerate(window):
+            e = m["src"].get(wy)
+            v = None if e is None else e["vals"][wm - 1]
+            mask.append(v is None)
+            vals.append(v or 0.0)
+        ln = Line(m["kind"], m["name"], vals, m["section"], m["side"])
+        ln.below = m["below"]
+        ln.empty = mask
+        ln.values_annual = None
+        lines_out.append(ln)
+
+    # ---- (b, again) the SAME four identities on the STITCHED window -------
+    print("  [b-window] The same four identities re-checked on the STITCHED "
+          "window (this is what proves the stitch):")
+    wsh = {"rental_keys": [], "other_keys": [], "expense_keys": []}
+    seen_tri = seen_ti = seen_te = False
+    wacc = {}
+    for ln in lines_out:
+        if ln.below:
+            continue
+        key = _owner_cy_key(ln.name)
+        if ln.kind == "subtotal":
+            wacc[key] = ln
+            if re.fullmatch(r"total\s+rental\s+income", ln.name, re.I):
+                seen_tri = True
+            elif re.fullmatch(r"total\s+income", ln.name, re.I):
+                seen_ti = True
+            elif re.fullmatch(r"total\s+(operating\s+)?expenses?",
+                              ln.name, re.I):
+                seen_te = True
+            continue
+        if ln.kind != "account":
+            continue
+        wacc[key] = ln
+        if not seen_tri:
+            wsh["rental_keys"].append(key)
+        elif not seen_ti:
+            wsh["other_keys"].append(key)
+        elif not seen_te:
+            wsh["expense_keys"].append(key)
+
+    def _wget(key, m, _a=wacc):
+        ln = _a.get(key)
+        return 0.0 if ln is None else ln.values[m]
+    _month_checks(f"stitched {months[0]:%b %Y}-{months[-1]:%b %Y}",
+                  wsh, range(12), _wget)
+
+    # ---- (d) window grand rows vs parsed detail ---------------------------
+    det_inc = sum(sum(l.values) for l in lines_out
+                  if l.kind == "account" and not l.below and l.side == "inc")
+    det_exp = sum(sum(l.values) for l in lines_out
+                  if l.kind == "account" and not l.below and l.side == "exp")
+    pr_inc = sum(_wget("total income", m) for m in range(12))
+    pr_exp = sum(_wget("total expenses", m) for m in range(12))
+    pr_noi = sum(_wget("net operating income", m) for m in range(12))
+    print("  [d] Trailing-12 window vs the sum of the statement's own printed "
+          "grand rows over those twelve months:")
+    for lbl, got, want in (("Total Revenue", det_inc, pr_inc),
+                           ("Total Operating Expenses", det_exp, pr_exp),
+                           ("Net Operating Income", det_inc - det_exp,
+                            pr_noi)):
+        good = abs(got - want) <= 0.05
+        print(f"      {'OK ' if good else 'MISMATCH'} {lbl}: parsed detail "
+              f"{got:,.2f} vs printed {want:,.2f} "
+              f"(variance {got - want:+,.2f})")
+        if not good:
+            fails.append(f"WINDOW GRAND MISMATCH {lbl}: parsed {got:,.2f} vs "
+                         f"printed {want:,.2f}")
+
+    if fails:
+        for f in fails:
+            print("  " + f)
+        if not trust_monthly:
+            sys.exit("ERROR: owner calendar-year tabs do not tie out - "
+                     "aborting. (re-run with --trust-monthly to treat the "
+                     "monthly detail as source of truth)")
+        print("  --trust-monthly: monthly detail wins over the printed "
+              "roll-up rows.")
+
+    # This dialect carries no property name anywhere in the file.
+    print("  NOTE: this workbook carries no property name (no title block, "
+          "no header rows) - the deliverable is named from --property.")
+    return "", months, _xlsx_grand_finalize(
+        lines_out, [], trust_monthly, _GRAND_PATS_OWNER_CY)
+
+
 # Detection-based dispatch for xlsx T-12s (mirrors the rent-roll XLSX_PARSERS
 # convention). parse_t12_xlsx itself is the fallback owner/PM-prepared layout.
 T12_XLSX_PARSERS = [
+    (_is_owner_calendar_year_tabs, parse_t12_owner_calendar_year_tabs),
     (_is_resman_trailing_xlsx, parse_t12_resman_trailing_xlsx),
     (_is_appfolio_xlsx, parse_t12_appfolio_xlsx),
     (_is_onesite_xlsx, parse_t12_onesite_xlsx),
@@ -4163,15 +4842,20 @@ def write_capex(out_path, prop, months, lines, real_idx=None):
     for col in "BCDEFGHIJKLMN":
         ws.column_dimensions[col].width = 11
 
-    def put(r, name, vals=None, bold=False, border=False):
+    def put(r, name, vals=None, bold=False, border=False, mask=None):
         c = ws.cell(row=r, column=1, value=name)
         c.font = f_bold if bold else f_norm
         if border:
             c.border = top_border
         if vals is not None:
-            # months in B.., Total pinned to col N regardless of month count
+            # months in B.., Total pinned to col N regardless of month count.
+            # `mask` marks months the SOURCE left blank (an account that only
+            # exists on one of a multi-year source's tabs) - a blank is not a
+            # zero, so those cells stay empty here too.
+            mask = mask or [False] * len(vals)
             for i, v in enumerate(vals):
-                cc = ws.cell(row=r, column=2 + slots[i], value=round(v, 2))
+                cc = ws.cell(row=r, column=2 + slots[i],
+                             value=None if mask[i] else round(v, 2))
                 cc.number_format = ACCT
                 cc.font = f_bold if bold else f_norm
                 if border:
@@ -4195,7 +4879,7 @@ def write_capex(out_path, prop, months, lines, real_idx=None):
             pending_section = None
             r += 1
         if ln.kind == "account":
-            put(r, ln.name, ln.values)
+            put(r, ln.name, ln.values, mask=getattr(ln, "empty", None))
             grand = [g + v for g, v in zip(grand, ln.values)]
         else:                      # printed subtotal row
             put(r, ln.name, ln.values, bold=True, border=True)
@@ -4266,6 +4950,12 @@ def main(argv=None):
                          "and written to the workbook's Comments tab: an "
                          "exclusion is never silent. A "
                          "name that matches nothing aborts the run.")
+    ap.add_argument("--note", action="append", metavar="TEXT", default=None,
+                    help="add a data-quality / methodology note to the "
+                         "workbook's Comments tab (repeatable). House rule "
+                         "8/6/2026: the send-out Trailing Financials tab "
+                         "carries no commentary - every note lives on the "
+                         "separate Comments tab in plain black.")
     ap.add_argument("--exclude-reason", default="",
                     help="why the --exclude-account lines were removed; "
                          "quoted verbatim in the run output, the notes and "
@@ -4331,10 +5021,11 @@ def main(argv=None):
     # Parsers that verify printed roll-ups internally apply exclusions
     # themselves (before those checks run); for every other source the same
     # flag is honoured here, right after the parse.
+    excl_notes = []
     if args.exclude_account and not (meta or {}).get("exclusions_applied"):
-        lines, _excl = apply_exclusions(lines, months, args.exclude_account,
-                                        args.exclude_reason)
-        for n in _excl:
+        lines, excl_notes = apply_exclusions(
+            lines, months, args.exclude_account, args.exclude_reason)
+        for n in excl_notes:
             print("   " + n)
     n_acct = sum(1 for l in lines if l.kind == "account")
     n_mo = len(months)
@@ -4492,6 +5183,11 @@ def main(argv=None):
         comments.append(pad_note)
     if meta and meta.get("note_line"):
         comments.append(meta["note_line"])
+    # --exclude-account is never silent: the removal report belongs on the
+    # Comments tab, not just in the console (house rule). Parsers that apply
+    # exclusions themselves hand theirs back through meta["note_line"].
+    comments.extend(excl_notes)
+    comments.extend(args.note or [])
     if pro_notes:
         # a prorated month is NOT what the statement printed for that month -
         # say so on the Comments tab (house rule 8/6/2026: no red text on the
