@@ -2,6 +2,8 @@
 
 How to install/repair the agent toolchain on a host where you have **no sudo** — covers the Python deps, npm globals, and the Chromium shared-library problem that breaks Playwright rendering. Read this if a job fails with `ModuleNotFoundError`, `externally-managed-environment`, or `error while loading shared libraries`.
 
+This file covers the *document-production* toolchain only. For the Dropbox client — installing it, supervising it with `systemd --user`, and getting it linked so `DROPBOX_DIR` can be switched on — see `dropbox-headless-linux-setup.md`. (Useful cross-finding from that work: on this host `loginctl enable-linger claudia` succeeds **without root**, which makes `systemctl --user` services viable for anything that must survive a reboot.)
+
 First established 2026-08-06 on `ubuntu-8gb-nbg1-2` (Ubuntu resolute, Python 3.14.4, Node v22.23.2).
 
 ## Check before you fix
