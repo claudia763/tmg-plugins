@@ -211,6 +211,43 @@ Free-and-Clear Debt Capacity"** section (debt-capacity + rate-sensitivity
 tables) and an **NOI bridge** table replacing the template's
 expense-comparison table. 63 figures verified present by substring check.
 
+## BOV deck (same thread, 8/6/2026)
+
+`Westlake_Apartments_BOV.pdf` — 11 pages, 1700×1080, built from the valuation
+summary's numbers with the `bov-deck` skill. Verified 103/103 figures via
+`verify_bov_deck.py`. See `bov-deck-layout-and-render-notes.md` §4b/§4c for the
+Linux render path and the brochure-photo extraction technique this deal added.
+
+Deviations from the template's stock page plan, all driven by the deal's
+narrative variant:
+
+- **Page 9 became "Financing & Debt Capacity"** rather than a plain financing
+  page — the debt-capacity table is the centerpiece exhibit on a deal where the
+  requester asked for a market-cap-rate + free-and-clear-debt test.
+- **Page 6 uses the NOI bridge** in place of the template's expense-comparison
+  table (zero-value-add variant), with the circle badge parked at
+  `left:1300px; top:180px` exactly as the notes prescribe.
+- **Advisor lineup was Greg Miller, Jon Krebbs, Paul Yazbeck, Chase Davis** —
+  Greg is NOT in the main library's assets; headshots and current contact
+  details are now in `templates/bov-advisor-assets/`. Dmytro asked to be left
+  off and was added to `--extra-banned`.
+
+**Two overflow defects caught only by looking at the page PNGs** (exactly the
+trap §1 warns about — nothing errored):
+
+1. **Page 3** — the left navy card's Profile paragraph ran past the card edge,
+   and **seven** rows of the right metrics table wrapped to two lines. Fixed by
+   shortening labels (`T-12 Cap Rate (As Reported)` → `T-12 Cap Rate`,
+   `Projected IRR / Equity Multiple` → `IRR / Equity Multiple`, etc.) and
+   trimming the Profile to four lines. **Rule of thumb for that card:** at font
+   23.5 in the 800 px card, label + value must total under ~65 characters or the
+   row wraps; the left navy card at font 23 allows ~23 chars in column 1.
+2. **Page 10** — the fifth risk bullet vanished entirely. Fixed by moving it
+   into the dead space beneath the navy callout stack as a gold-left-border
+   box. **That right-hand column below the callout stack is ~380 px of unused
+   space on every Recommendation page — use it rather than fighting the left
+   column's budget.**
+
 ## Model artifacts worth reporting back to the analyst
 
 - Page 2's floor-plan block prints **`#DIV/0!`** in the Pro Forma and Pro Forma
