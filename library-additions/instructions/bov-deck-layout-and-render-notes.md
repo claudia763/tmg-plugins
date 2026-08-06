@@ -135,6 +135,63 @@ A rendered 11-page deck with three full-bleed photos lands around 2.5 MB, which
 is fine as an email attachment. If it exceeds ~8 MB, the photos were not
 downsized.
 
+## 4b. Rendering on the Linux agent server (added 8/6/2026, Westlake)
+
+Same ESM gotcha as Windows, different paths. On `ubuntu-8gb-nbg1-2`:
+
+```bash
+cp "<skill>/scripts/render.js" ./render.cjs          # .cjs — parent package.json is "type":"module"
+ln -sfn /home/claudia/email-cowork-server/node_modules ./node_modules   # for the HTML's asset resolution
+NODE_PATH=/home/claudia/.npm-global/lib/node_modules node render.cjs westlake_bov.html Westlake_Apartments_BOV.pdf
+python3 <library-additions>/scripts/verify_bov_deck.py Westlake_Apartments_BOV.pdf figures.txt \
+        --extra-banned "Dmytro,Gladchenko,Yonnic"
+```
+
+Playwright and Chromium are already installed here — `npm install` is not
+needed; confirm with `node -e "console.log(require.resolve('playwright'))"`
+(resolves to `/home/claudia/.npm-global/lib/node_modules/playwright`).
+An 11-page deck with four photos renders in a few seconds at ~2.5 MB.
+
+**Use `--extra-banned` for people who must NOT appear.** On Westlake the
+requester asked to be left off the advisors page; passing his name as a banned
+phrase turns "did I actually remove him everywhere" into a build gate instead of
+a manual scan. Same trick for a dropped comp or a superseded price.
+
+## 4c. Sourcing real photos when ownership supplies none
+
+The Yardi e-brochure usually carries 2–4 usable subject photos even when no
+photo package exists — extract them from the brochure PDF rather than shipping
+placeholder frames:
+
+```python
+import fitz
+b = fitz.open("Property - E-Brochure.pdf")
+for pno in (0, 1):                       # cover + the data page carry the photos
+    p = b[pno]
+    for im in p.get_images(full=True):
+        px = fitz.Pixmap(b, im[0])
+        if px.n - px.alpha > 3: px = fitz.Pixmap(fitz.csRGB, px)
+        if px.width >= 300: px.save(f"p{pno+1}_{im[0]}.png")
+```
+
+They come out small (typically 400×320 or 640×512), so **upscale with LANCZOS
+plus a mild unsharp mask before use** — browser bilinear scaling to a 1700 px
+page looks visibly mushy, and a full-bleed cover is a 2.6× upscale:
+
+```python
+im = im.resize((tw, th), Image.LANCZOS).filter(
+        ImageFilter.UnsharpMask(radius=2, percent=65, threshold=3))
+```
+
+Crop to the target aspect ratio *before* resizing, and lean on a heavier cover
+scrim (`rgba(10,26,48,.72) → .22 → .78`) to mask residual softness.
+
+**Do not crop off the "Image courtesy of Yardi Matrix" watermark.** It is an
+attribution, not an MLS junk strip — `prep_deck_photos.py`'s copyright-strip
+removal is for MLS photos and should not be pointed at Yardi images. Instead,
+flag the photography gap in the Recommendation page and recommend ownership
+commission a shoot before launch.
+
 ## 5. Verification gotcha
 
 `&ndash;`, `&rarr;` and `&dagger;` extract as separate text runs, so PyMuPDF can
