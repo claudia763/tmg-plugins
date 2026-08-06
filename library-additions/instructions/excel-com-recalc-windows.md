@@ -51,6 +51,17 @@ re-open + automatic recalc + re-save to be cleaned.
 - Error-diff check (zero-new-errors gate): scanning cached values with
   openpyxl `data_only=True` for `#REF!/#VALUE!/#DIV/0!/#N/A/...` strings is a
   reliable cross-file diff and avoids the COM SpecialCells quirks.
+- **openpyxl mangles every chart in the model** (16 charts): it flips
+  `<c:roundedCorners>` to 1, drops the chart-area `<c:spPr>` (transparent
+  fill / no border) and injects solid dash props — charts render with a grey
+  rounded box and lose their gallery style in Excel. Fix: after all openpyxl
+  edits, ZIP-replace `xl/charts/chartN.xml` with the pristine template's
+  parts (series ranges are identical; Excel refreshes cached values on the
+  next full recalc). See `restore_charts.py` pattern in the St Nicholas notes.
+- The PDF sheet's comp-map frame is `I121:O147` — insert the generated map
+  picture at exactly that range's Left/Top/Width/Height (LockAspectRatio=0)
+  so it fills the frame snugly; render the PNG at the frame's aspect ratio
+  first (~1530x1182 px for 527x407 pt).
 - Zip codes: write `Master!D3` (and comp-table zips) as INTEGERS. A string zip
   breaks `Agency Loan-Sale Comps` `QueryRegion` (INDEX/MATCH against a numeric
   zip->region table) and prints `#N/A` in the PDF's search-criteria block.
