@@ -55,6 +55,24 @@ this deal again or reusing the model workflow.
 - Known accepted artifact: `UW - F&C!AO10` #DIV/0! (a "% vs T-12" helper
   dividing by zero T-12 bad debt; off-PDF, referenced by nothing).
 
+## Round 3 (8/6 ~2:00 AM)
+
+- **`--prorate-bulk` house rule landed in the repo** (commit e3d2ea1: new
+  flag in `process_t12.py` + section in `house-rules.md`): bulk i/tx
+  payments concentrated in <= 3 months get annual/12 respread (cents in the
+  last month), lines renamed " (prorated)", applied after parse validation,
+  proration checks added to the reconciliation block, harvest strips the
+  suffix. T-12 deliverable regenerated; no-flag run verified cell-identical
+  to the pre-rule output.
+- Model's Final_T_12 rows i/tx respread the same way (labels unchanged
+  there — the UW display names are SUMIF-driven); annual totals, metrics and
+  strike unchanged; the Dec-25 NOI spike disappears from the page-6 charts.
+- Map refit to **I121:O148** (Dmytro's spec; render the PNG at that frame's
+  aspect first). "Yellow dots error": the template's scatter markers are
+  hardcoded FFFF00 on BOTH series — the chart that PRINTS is chart2 on the
+  PDF sheet (chart8 Assume-Loan variant; 5/11/14/15 mirrors). House colors:
+  comps 4F81BD, subject diamond FDB714 (see excel-com-recalc-windows.md).
+
 ## Other pipeline outputs (same job)
 
 - Sales comps: subject geocoded 32.70512, -97.45191; 94 comps scored, top-10
