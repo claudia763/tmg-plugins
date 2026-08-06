@@ -55,6 +55,14 @@ this deal again or reusing the model workflow.
 - Known accepted artifact: `UW - F&C!AO10` #DIV/0! (a "% vs T-12" helper
   dividing by zero T-12 bad debt; off-PDF, referenced by nothing).
 
+## Round 4 (8/6 ~2:15 AM)
+
+- **Comments-tab house rule landed** (repo commit 0c78e86): NO red text on
+  the T-12 Trailing Financials export. All notes (proration, exclusions,
+  pad-to-12, data quality) go to a separate "Comments" tab, plain black, one
+  note per row, created only when notes exist. `write_workbook` `note_line`
+  now takes a string or list. Rent-roll red ESTIMATE cells unaffected.
+
 ## Round 3 (8/6 ~2:00 AM)
 
 - **`--prorate-bulk` house rule landed in the repo** (commit e3d2ea1: new
