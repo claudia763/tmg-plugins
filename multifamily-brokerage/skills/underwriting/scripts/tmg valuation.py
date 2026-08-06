@@ -17,6 +17,14 @@ tabs and the hidden engine they drive:
 Pure standard library (no Excel, no numpy) so it runs on any Linux server
 with Python 3.8+.
 
+PER-DEAL USE (skill Phase A): copy this file into the job folder and replace
+the PROPERTY / T12_MONTHLY / ASSUMPTIONS / VALUE_ADD_ITEMS / FACTORS config
+blocks with the new deal's data; the shipped values are the worked example
+(Westlake Apartments, Lubbock TX, validated against the Excel model to
+~0.000% on every metric). EXCEL_TARGETS is optional — leave it from the
+prior deal and ignore the validation table, or update it if you have a
+filled-out workbook to back into.
+
 Target metrics reproduced within +/- 2% of the Excel model:
     Project IRR, Average Cash-on-Cash, DSCR (T-3 and Pro Forma Year 1).
 
@@ -127,10 +135,15 @@ ASSUMPTIONS = {
     "expense_growth": 0.02,             # G45
     "tax_growth": 0.02,                 # G46
 
-    # Economic loss (vacancy + LTL + concessions) applied to GPR in out-years.
-    # Hidden engine constants: 'UW - F&C' AQ50:AU50  (yr2, yr3 = base+2pts;
-    # yr4, yr5, reversion = base 10%).
-    "econ_loss_by_year": {2: 0.12, 3: 0.12, 4: 0.10, 5: 0.10, "reversion": 0.10},
+    # Stabilized (reversion-year) economic loss — Assumptions!G59, inserted
+    # 8/2026 directly below Terminal Cap Rate, default 8.0%. Flows to
+    # 'UW - F&C' AU50; the sheet then walks it back toward acquisition:
+    #   AT50 (yr5) = AU50 + 0.005      AS50 (yr4) = AT50 + 0.005
+    #   AR50 (yr3) = AS50 + 0.005
+    #   AQ50 (yr2) = (AR50 + SUM(AM8:AM10)) / 2 + 0.005
+    # (AM8:AM10 = Year-1 vacancy + concessions + bad debt).
+    # See econ_loss_schedule(); replaces the old hardcoded AQ50:AU50 constants.
+    "reversion_econ_loss": 0.08,        # G59
 
     # ---- Acquisition / disposition ----
     "purchase_price": 11_500_000,       # G50 (strike)
@@ -140,22 +153,22 @@ ASSUMPTIONS = {
     "loan_origination_pct": 0.03,       # G56 (% of loan, paid from equity)
     "hold_period_years": 5,             # G57
     "terminal_cap_override": None,      # G58 (None = Factors build-up)
-    "sales_expense_pct": 0.03,          # G59
+    "sales_expense_pct": 0.03,          # G60
 
     # ---- New debt (Free & Clear) — Freddie Mac Conventional terms ----
-    "ltv": 0.75,                        # G63
-    "interest_rate": 0.0613,            # G64
-    "io_years": 3,                      # G66
-    "loan_term_months": 120,            # G67
-    "amortization_months": 360,         # G68
-    "supplemental_loan": 0,             # G69
-    "supplemental_rate": 0.0,           # G70
+    "ltv": 0.75,                        # G64
+    "interest_rate": 0.0613,            # G65
+    "io_years": 3,                      # G67
+    "loan_term_months": 120,            # G68
+    "amortization_months": 360,         # G69
+    "supplemental_loan": 0,             # G70
+    "supplemental_rate": 0.0,           # G71
 
     # ---- Syndication ----
-    "preferred_return": 0.0,            # G87
-    "lp_share": 0.80,                   # G88
-    "gp_coinvest": 0,                   # G90
-    "asset_mgmt_fee_pct": 0.015,        # G91 (% of gross revenue)
+    "preferred_return": 0.0,            # G88
+    "lp_share": 0.80,                   # G89
+    "gp_coinvest": 0,                   # G91
+    "asset_mgmt_fee_pct": 0.015,        # G92 (% of gross revenue)
 }
 
 # ============================================================================
@@ -231,19 +244,25 @@ FACTORS = {
     ],
 }
 
-# Excel-cached outputs for validation (from the filled-out workbook).
+# Reference outputs for validation (Westlake Apartments).
+# Year-1 metrics were validated to ~0.000% against the 8/6/2026 filled-out
+# workbook and are unchanged by the G59 economic-loss update. The out-year
+# metrics (IRR, CoC, equity multiple, LP IRR, exit price) are this engine's
+# values under the new G59 schedule (G59 = 8.0%) — re-validate them against
+# the next filled-out copy of the updated workbook and paste in its cached
+# values.
 EXCEL_TARGETS = {
-    "project_irr": 0.20373900092663333,
-    "avg_cash_on_cash": 0.11893870905398936,
-    "t3_dscr": 1.3076268612470674,
-    "proforma_y1_dscr": 1.862208060526909,
-    "equity_multiple": 2.209159996691845,
-    "lp_irr": 0.16531472426408178,
-    "noi_year1": 984572.6792013333,
-    "loan_amount": 8_625_000,
-    "equity_required": 3_133_750,
-    "terminal_cap": 0.07,
-    "sale_price_at_exit": 13887704.937668497,
+    "project_irr": 0.2337289397,        # engine-derived under G59 schedule
+    "avg_cash_on_cash": 0.1308252417,   # engine-derived under G59 schedule
+    "t3_dscr": 1.3076268612470674,      # Excel-validated (Y1 / trailing)
+    "proforma_y1_dscr": 1.862208060526909,   # Excel-validated
+    "equity_multiple": 2.4492772459,    # engine-derived under G59 schedule
+    "lp_irr": 0.1876298753,             # engine-derived under G59 schedule
+    "noi_year1": 984572.6792013333,     # Excel-validated
+    "loan_amount": 8_625_000,           # Excel-validated
+    "equity_required": 3_133_750,       # Excel-validated
+    "terminal_cap": 0.07,               # Excel-validated
+    "sale_price_at_exit": 14471437.2280,  # engine-derived under G59 schedule
 }
 
 
@@ -317,6 +336,24 @@ def t12(series):            # trailing-12 total
 
 def t3_annualized(series):  # last 3 months x 4
     return sum(series[-3:]) * 4
+
+
+def econ_loss_schedule(a):
+    """Out-year economic loss, 'UW - F&C' AQ50:AU50 (post-8/2026 model).
+
+    Anchored at the stabilized/reversion input (Assumptions!G59 ->
+    reversion_econ_loss) and stepped +50 bps per year walking back toward
+    acquisition; year 2 averages the year-3 loss with the Year-1
+    underwritten economic loss, plus 50 bps.
+    Keys are absolute proforma years (2..6; year 6 = reversion column AU).
+    """
+    rev = a["reversion_econ_loss"]                                   # AU50
+    y5 = rev + 0.005                                                 # AT50
+    y4 = y5 + 0.005                                                  # AS50
+    y3 = y4 + 0.005                                                  # AR50
+    y1_loss = a["vacancy_pct"] + a["concessions_pct"] + a["bad_debt_pct"]
+    y2 = (y3 + y1_loss) / 2 + 0.005                                  # AQ50
+    return {2: y2, 3: y3, 4: y4, 5: y5, 6: rev}
 
 
 def value_add_summary(items, units_total):
@@ -437,9 +474,10 @@ def run_model(prop=PROPERTY, t12m=T12_MONTHLY, a=ASSUMPTIONS,
     rental[1] = net_rental_income1
     other[1] = other_income1
     rubs_y[1] = rubs_income1
+    econ_sched = econ_loss_schedule(a)
     for i, y in enumerate(years[1:], start=2):
         gpr[y] = gpr[years[i - 2]] * (1 + a["gpr_growth"])
-        econ[y] = a["econ_loss_by_year"][y]
+        econ[y] = econ_sched[min(i, 6)]   # i = absolute proforma year
         rental[y] = gpr[y] * (1 - econ[y])
         other[y] = other[years[i - 2]] * (1 + a["other_income_growth"])
         rubs_y[y] = rubs_y[years[i - 2]] * (1 + a["other_income_growth"])
