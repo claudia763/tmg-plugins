@@ -2053,8 +2053,9 @@ def apply_exclusions(lines, months, exclude, reason=""):
     nothing, and returns a note per removed line carrying the account, the
     side, every non-zero monthly value removed, the removed total and the
     stated reason. Nothing about an exclusion is ever silent - it prints to
-    the console, lands in the delivery notes, and is written as a red note on
-    the Trailing Financials tab.
+    the console, lands in the delivery notes, and is written to the Comments
+    tab (house rule 8/6/2026: no red text on the send-out tab; notes live on
+    a separate Comments tab in plain black).
 
     Returns (kept_lines, notes).
     """
@@ -2582,8 +2583,8 @@ def parse_t12_owner_rental_schedule(path, trust_monthly=False,
         "detail and reported with '~' - they are not independent tie-out "
         "targets.")
 
-    # a red note under the month headers naming what ownership left blank /
-    # keyed twice inside the window - the two things that move NOI here
+    # a Comments-tab note naming what ownership left blank / keyed twice
+    # inside the window - the two things that move NOI here
     bits = []
     excl_line = ""
     if excl_notes:
@@ -3537,8 +3538,8 @@ def map_codes(lines, by_gl, by_name):
 #     bit-for-bit unchanged.
 #   * Nothing is silent. Every prorated line is named in the console output,
 #     in the printed reconciliation block (with its own tie-out check), in the
-#     delivery notes and as a red note on the Trailing Financials tab, and the
-#     account itself is renamed with the " (prorated)" suffix so the number can
+#     delivery notes and on the workbook's Comments tab, and the account
+#     itself is renamed with the " (prorated)" suffix so the number can
 #     never be mistaken for what the statement actually printed.
 
 PRORATE_CODES = ("i", "tx")          # insurance, real estate taxes
@@ -3849,8 +3850,11 @@ def write_workbook(template, out_path, prop, months, lines,
     and every sum, sum-check and reconciliation continues to run on real
     months only.
 
-    `note_line` is an extra red note written under the Trailing Financials
-    header (used to say which months ownership did not provide)."""
+    `note_line` is a note string or list of note strings (data-quality,
+    exclusions, proration, pad-to-12 gaps). House rule 8/6/2026: NO red text
+    on the send-out Trailing Financials tab - notes are written to a
+    separate "Comments" tab in plain black, and that tab is only created
+    when there is at least one note."""
     n = len(months)
     if n > 12:
         raise ValueError(f"{n} month columns - template holds 12")
@@ -3970,12 +3974,8 @@ def write_workbook(template, out_path, prop, months, lines,
     c.font = f_bold
     c.border = thin_bottom
     tf["A3"].border = thin_bottom
-    if note_line:
-        # dedicated red note line, directly under the month header row and
-        # above the first category (row 4 is blank in the template)
-        nc = tf.cell(row=4, column=1, value=note_line)
-        nc.font = Font(name=base.name, size=base.size, bold=True,
-                       color="9C0006")
+    # notes intentionally NOT written here - house rule 8/6/2026 says the
+    # send-out tab carries no red commentary; see the Comments tab below
 
     def members(code):
         if code == "ro":
@@ -4089,6 +4089,29 @@ def write_workbook(template, out_path, prop, months, lines,
             del wb[name]
     wb.move_sheet("Trailing Financials", -wb.sheetnames.index(
         "Trailing Financials"))
+
+    # ------------- Comments tab (house rule 8/6/2026) -------------
+    # No red text on the main export: every note/comment goes onto its own
+    # "Comments" tab in plain black. The tab exists only when there is
+    # something to say.
+    notes = [note_line] if isinstance(note_line, str) else list(note_line or [])
+    notes = [nt for nt in notes if nt]
+    if notes:
+        from openpyxl.styles import Alignment
+        cm = wb.create_sheet("Comments")
+        cm["A1"] = prop
+        cm["A1"].font = f_bold
+        cm["A2"] = "Comments"
+        cm["A2"].font = f_bold
+        rr = 4
+        for nt in notes:
+            c = cm.cell(row=rr, column=1, value=nt)
+            c.font = f_norm
+            c.alignment = Alignment(wrap_text=True, vertical="top")
+            # rough wrap-height so long notes stay readable at width 120
+            cm.row_dimensions[rr].height = max(15, 15 * (len(nt) // 110 + 1))
+            rr += 2
+        cm.column_dimensions["A"].width = 120
 
     _purge_broken_names(wb)
     wb.calculation.calcId = 191029
@@ -4240,8 +4263,8 @@ def main(argv=None):
                          "hand-keyed duplicate of another line. The removed "
                          "account, side, every monthly value removed and the "
                          "reason are printed, added to the delivery notes "
-                         "and written as a red note on the Trailing "
-                         "Financials tab: an exclusion is never silent. A "
+                         "and written to the workbook's Comments tab: an "
+                         "exclusion is never silent. A "
                          "name that matches nothing aborts the run.")
     ap.add_argument("--exclude-reason", default="",
                     help="why the --exclude-account lines were removed; "
@@ -4266,8 +4289,9 @@ def main(argv=None):
                          "ending at its last real month: the missing months "
                          "get dated column headers but genuinely EMPTY data "
                          "cells (never zeros), the Total column stays the sum "
-                         "of the real months, and a red note names the months "
-                         "ownership did not provide. Implies --allow-partial.")
+                         "of the real months, and a Comments-tab note names "
+                         "the months ownership did not provide. Implies "
+                         "--allow-partial.")
     args = ap.parse_args(argv)
     if args.pad_to_12:
         args.allow_partial = True
@@ -4463,21 +4487,27 @@ def main(argv=None):
                             f"{b.replace(day=1):%m/%d}-{b:%m/%d/%Y} only "
                             f"({b.day} of {_month_end(b.year, b.month).day} "
                             f"days).")
-    note_line = pad_note or (meta.get("note_line") if meta else None)
+    comments = []
+    if pad_note:
+        comments.append(pad_note)
+    if meta and meta.get("note_line"):
+        comments.append(meta["note_line"])
     if pro_notes:
         # a prorated month is NOT what the statement printed for that month -
-        # say so on the face of the send-out tab, in red, never silent
-        pro_line = ("BULK PAYMENTS PRORATED (house rule): "
-                    + "; ".join(
-                        f"{nt['name']} - {nt['pattern']} respread as "
-                        f"{nt['per']:,.2f}/mo x {n_mo - 1} + "
-                        f"{nt['last']:,.2f} in {nt['last_month']}, annual "
-                        f"{nt['annual']:,.2f} unchanged"
-                        for nt in pro_notes)
-                    + ". Monthly figures for these lines are prorated, not "
-                      "as-posted; annual totals, Total Operating Expenses "
-                      "and NOI are exactly as the statement printed them.")
-        note_line = (note_line + " " + pro_line) if note_line else pro_line
+        # say so on the Comments tab (house rule 8/6/2026: no red text on the
+        # send-out tab), never silent
+        comments.append(
+            "BULK PAYMENTS PRORATED (house rule): "
+            + "; ".join(
+                f"{nt['name']} - {nt['pattern']} respread as "
+                f"{nt['per']:,.2f}/mo x {n_mo - 1} + "
+                f"{nt['last']:,.2f} in {nt['last_month']}, annual "
+                f"{nt['annual']:,.2f} unchanged"
+                for nt in pro_notes)
+            + ". Monthly figures for these lines are prorated, not "
+              "as-posted; annual totals, Total Operating Expenses "
+              "and NOI are exactly as the statement printed them.")
+    note_line = comments
     print("RawData sum-check (written values, tolerance +/- 10):")
     sumcheck_ok = write_workbook(args.template, out, sprop, months, lines,
                                  raw_only=args.raw_only,

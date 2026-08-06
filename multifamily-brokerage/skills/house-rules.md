@@ -258,3 +258,15 @@ Validated on Benbrook 8/2026: Insurance 20,544.80 -> 1,712.07/mo x 11 +
 1,712.03 in Jun-26; Property Tax 34,604.10 -> 2,883.68/mo x 11 + 2,883.62 in
 Jun-26; Revenue/OpEx/NOI annual totals unchanged to the cent, and a no-flag
 run remains byte-identical to the pre-rule output (strictly opt-in).
+
+## No red text on the T-12 export - Comments tab (house rule 8/6/2026, per Dmytro)
+
+The send-out Trailing Financials tab carries NO red commentary. Every note
+that previously printed as a red line under the month headers (proration
+notes, --exclude-account reports, pad-to-12 gap notes, data-quality notes)
+now goes onto a separate tab named **Comments** - plain black text, one note
+per row, property name at the top. The tab is only created when there is at
+least one note; a clean statement ships with no Comments tab at all.
+`write_workbook`'s `note_line` accepts a string or a list of note strings.
+(The rent-roll deliverable's red-flagged ESTIMATE cells are a different
+mechanism and are unchanged.)
