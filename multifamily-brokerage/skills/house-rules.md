@@ -228,3 +228,33 @@ agree ("Billing Fee" -> `ro`) still map silently.
   statement's printed Total Revenue / Total Operating Expense / NOI
   (±$0.05); RawData sum-check rows recomputed from written values (±10 per
   row).
+
+## Bulk insurance / tax payments are prorated (house rule 8/6/2026, per Dmytro)
+
+Cash-basis books often post a whole year of insurance or property tax in one
+month (Benbrook: both hit Dec-25), which distorts every monthly view and any
+T-3/T-1 read. The rule: **bulk insurance or tax payments on a line item get
+summed up for the year then prorated across the year**, and the line is
+renamed with the suffix ` (prorated)`.
+
+`--prorate-bulk` in `process_t12.py` (opt-in, never silent):
+
+- Applies to lines coded `i` or `tx` whose non-zero values sit in <= 3 of the
+  12 statement months (the concentration test).
+- Annual total / 12 per month, each rounded to 2 decimals, with the cents
+  remainder absorbed in the LAST statement month so the twelve months sum to
+  the original annual total exactly.
+- Proration happens AFTER parse-time validation - the month-by-month ties to
+  the printed statement are checked on the raw values first, then the
+  reconciliation block adds per-line proration checks (12-month sum equals
+  the original annual; Total Operating Expenses and NOI unchanged).
+- The rename lands on the Trailing Financials tab and the Final T-12
+  model-import tab, plus a header note naming each respread line; the
+  console output reports the original payment pattern and per-month amount.
+- `harvest` strips the ` (prorated)` suffix before corpus matching so
+  prorated workbooks do not pollute the shared corpus.
+
+Validated on Benbrook 8/2026: Insurance 20,544.80 -> 1,712.07/mo x 11 +
+1,712.03 in Jun-26; Property Tax 34,604.10 -> 2,883.68/mo x 11 + 2,883.62 in
+Jun-26; Revenue/OpEx/NOI annual totals unchanged to the cent, and a no-flag
+run remains byte-identical to the pre-rule output (strictly opt-in).

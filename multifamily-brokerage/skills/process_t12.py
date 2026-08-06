@@ -35,6 +35,7 @@ import sys
 import warnings
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from decimal import Decimal, ROUND_HALF_UP
 
 warnings.filterwarnings("ignore")
 
@@ -224,6 +225,11 @@ def harvest(paths, out_csv):
             if code in ("rev", "exp", "noi") or code not in \
                     (INCOME_CODES | EXPENSE_CODES):
                 continue
+            # "--prorate-bulk" renames the lines it smooths; the suffix is a
+            # presentation marker, never part of the account's real name, so
+            # it must not enter the shared corpus
+            acct = re.sub(re.escape(PRORATE_SUFFIX) + r"\s*$", "",
+                          str(acct).strip(), flags=re.I)
             key = (gl_number(acct), norm(acct))
             if key in seen or not key[1]:
                 continue
@@ -3505,6 +3511,167 @@ def map_codes(lines, by_gl, by_name):
 
 
 # ----------------------------------------------------------------------------
+# Bulk insurance / property-tax proration  (house rule, Dmytro 8/6/2026)
+# ----------------------------------------------------------------------------
+# "Bulk insurance or tax payments on a line item get summed up for the year
+#  then prorated across the year. Change the name of the T-12 lines that have
+#  this proration to include the suffix (prorated)."
+#
+# Cash-basis books post a whole year of insurance premium or property tax in
+# the single month the bill cleared. That one month's NOI is then meaningless
+# and every trailing-3 / trailing-6 annualisation off the statement is wrong.
+# Spreading the annual amount evenly across the twelve statement months gives
+# an accrual-shaped expense line without changing a single annual total.
+#
+# OPT-IN ONLY (`--prorate-bulk`): a statement that already accrues these lines
+# monthly must come through untouched, so the rule never runs by default.
+#
+# IRON RULES baked in here:
+#   * Proration runs AFTER the parser's validation against the statement's own
+#     printed monthly section subtotals. Prorating first would break every
+#     month-by-month tie to the printed statement - the raw parse is what ties
+#     out, and it must be allowed to do so before anything is smoothed.
+#   * The annual total is preserved TO THE CENT: eleven months carry the
+#     half-up rounded twelfth and the LAST month absorbs the remainder, so
+#     Total Operating Expenses, NOI and the reconciliation targets are
+#     bit-for-bit unchanged.
+#   * Nothing is silent. Every prorated line is named in the console output,
+#     in the printed reconciliation block (with its own tie-out check), in the
+#     delivery notes and as a red note on the Trailing Financials tab, and the
+#     account itself is renamed with the " (prorated)" suffix so the number can
+#     never be mistaken for what the statement actually printed.
+
+PRORATE_CODES = ("i", "tx")          # insurance, real estate taxes
+PRORATE_MAX_MONTHS = 3               # "concentrated" = <= 3 months carry money
+PRORATE_SUFFIX = " (prorated)"
+
+
+def _prorate_split(annual, n=12):
+    """`annual` -> n monthly amounts.
+
+    Each month is the annual amount / n rounded HALF-UP to the cent; the LAST
+    month absorbs the rounding remainder so sum(parts) == annual EXACTLY.
+    Decimal, not float: 34,604.10 / 12 = 2,883.675 and binary float rounds
+    that DOWN to 2,883.67 (the true double is 2883.67499...), which would put
+    a cent of property tax in the wrong place every month."""
+    tot = Decimal(str(round(annual, 2)))
+    per = (tot / Decimal(n)).quantize(Decimal("0.01"),
+                                      rounding=ROUND_HALF_UP)
+    parts = [per] * (n - 1) + [tot - per * (n - 1)]
+    return [float(p) for p in parts], float(per), float(parts[-1])
+
+
+def prorate_bulk(lines, months, codes=PRORATE_CODES,
+                 max_months=PRORATE_MAX_MONTHS, suffix=PRORATE_SUFFIX):
+    """Spread bulk insurance / tax payments evenly across the statement year.
+
+    An account qualifies when ALL of the following hold:
+      * it is an operating account line (not below-the-line, not a subtotal),
+      * its charge code is in `codes` (`i` insurance / `tx` real estate taxes),
+      * its annual total is non-zero, and
+      * its non-zero monthly values are CONCENTRATED in `max_months` months or
+        fewer - i.e. the book paid in lumps rather than accruing monthly.
+
+    A line already spread over more than `max_months` months is left exactly
+    as parsed: this rule smooths lump payments, it does not re-shape an
+    expense the property really did incur unevenly.
+
+    Mutates the qualifying `Line`s in place (values, name) and returns
+    `(notes, checks, ok)`:
+      notes  - one dict per prorated line (name, code, annual, pattern, per
+               month, last month, original values) for the console output and
+               the delivery notes,
+      checks - reconciliation lines to append to the printed block,
+      ok     - False if any proration check failed (caller exits non-zero).
+    """
+    n = len(months)
+    acct = [l for l in lines if l.kind == "account" and not l.below]
+    inc0 = sum(sum(l.values) for l in acct if l.code in INCOME_CODES)
+    exp0 = sum(sum(l.values) for l in acct if l.code in EXPENSE_CODES)
+
+    notes = []
+    for ln in acct:
+        if ln.code not in codes:
+            continue
+        vals = list(ln.values)
+        nz = [k for k, v in enumerate(vals) if round(v, 2) != 0]
+        annual = round(sum(vals), 2)
+        if not nz or abs(annual) < 0.005:
+            continue                       # nothing to spread
+        if len(nz) > max_months or len(nz) >= n:
+            continue                       # already spread across the year
+        parts, per, last = _prorate_split(annual, n)
+        pattern = ("single payment " if len(nz) == 1
+                   else f"{len(nz)} payments ") + ", ".join(
+            f"{months[k]:%b-%y} {vals[k]:,.2f}" for k in nz)
+        old_name = ln.name
+        ln.values = parts
+        # a prorated line carries an amount in every month by construction -
+        # any source-blank mask from the parser no longer applies
+        ln.empty = None
+        if not (ln.name or "").endswith(suffix):
+            ln.name = (ln.name or "") + suffix
+        notes.append({
+            "name": ln.name, "old_name": old_name, "code": ln.code,
+            "section": ln.section, "annual": annual, "pattern": pattern,
+            "n_months": len(nz), "per": per, "last": last,
+            "last_month": f"{months[-1]:%b-%y}", "orig": vals,
+            "new_total": round(sum(parts), 2),
+        })
+
+    checks, ok = [], True
+    if not notes:
+        return notes, checks, ok
+
+    inc1 = sum(sum(l.values) for l in acct if l.code in INCOME_CODES)
+    exp1 = sum(sum(l.values) for l in acct if l.code in EXPENSE_CODES)
+    checks.append(f"  Bulk-payment proration (--prorate-bulk): "
+                  f"{len(notes)} line(s) prorated")
+    for nt in notes:
+        d = nt["new_total"] - nt["annual"]
+        good = abs(d) <= 0.005
+        ok &= good
+        checks.append(
+            f"  {'OK ' if good else 'MISMATCH'} PRORATED {nt['name']} "
+            f"[{nt['code']}]: 12 months x prorated = {nt['new_total']:,.2f} "
+            f"vs original annual {nt['annual']:,.2f} (diff {d:+,.2f}); was "
+            f"{nt['pattern']}; now {nt['per']:,.2f}/mo x {n - 1} + "
+            f"{nt['last']:,.2f} in {nt['last_month']}")
+    for label, got, want in [
+            ("Total Revenue unchanged by proration", inc1, inc0),
+            ("Total Operating Expenses unchanged by proration", exp1, exp0),
+            ("NOI unchanged by proration", inc1 - exp1, inc0 - exp0)]:
+        good = abs(got - want) <= 0.005
+        ok &= good
+        checks.append(f"  {'OK ' if good else 'MISMATCH'} {label}: "
+                      f"after {got:,.2f} vs before {want:,.2f} "
+                      f"(diff {got - want:+,.2f})")
+    return notes, checks, ok
+
+
+def prorate_notes_text(notes, months):
+    """Human-readable delivery notes - one paragraph per prorated line."""
+    out = []
+    for nt in notes:
+        out.append(
+            "PRORATED (--prorate-bulk, house rule 8/6/2026, never silent): "
+            "account %r [%s] booked its year as a %s. The annual total "
+            "%s was summed and spread evenly across the %d statement months "
+            "(%s - %s): %s/mo for %d months plus %s in %s so the twelve "
+            "months still sum to %s exactly. The line is renamed %r on the "
+            "Trailing Financials tab and in the Final T-12 model-import tab. "
+            "Total Operating Expenses, NOI and every annual total are "
+            "unchanged; only the monthly shape moved."
+            % (nt["old_name"], CATEGORY_NAMES.get(nt["code"], nt["code"]),
+               nt["pattern"], f"{nt['annual']:,.2f}", len(months),
+               f"{months[0]:%b %Y}", f"{months[-1]:%b %Y}",
+               f"{nt['per']:,.2f}", len(months) - 1,
+               f"{nt['last']:,.2f}", nt["last_month"],
+               f"{nt['annual']:,.2f}", nt["name"]))
+    return out
+
+
+# ----------------------------------------------------------------------------
 # Reconciliation
 # ----------------------------------------------------------------------------
 
@@ -4080,6 +4247,20 @@ def main(argv=None):
                     help="why the --exclude-account lines were removed; "
                          "quoted verbatim in the run output, the notes and "
                          "the workbook")
+    ap.add_argument("--prorate-bulk", action="store_true",
+                    help="house rule (Dmytro, 8/6/2026): bulk insurance / "
+                         "real-estate-tax payments get summed for the year "
+                         "and prorated evenly across it. Any account coded "
+                         "'i' or 'tx' whose non-zero months number "
+                         f"{PRORATE_MAX_MONTHS} or fewer is respread as "
+                         "annual/12 (half-up to the cent, remainder in the "
+                         "last month, so the annual total is unchanged to "
+                         "the cent) and renamed with the "
+                         f"'{PRORATE_SUFFIX.strip()}' suffix. Runs AFTER the "
+                         "parse validates against the statement's printed "
+                         "monthly subtotals, and files its own tie-out "
+                         "checks in the reconciliation block. Opt-in and "
+                         "never silent.")
     ap.add_argument("--pad-to-12", action="store_true",
                     help="show a short statement on a full trailing-12 axis "
                          "ending at its last real month: the missing months "
@@ -4201,7 +4382,44 @@ def main(argv=None):
                 print(c)
 
     map_codes(lines, by_gl, by_name)
+
+    # ---- --prorate-bulk: spread lump insurance / tax payments -------------
+    # Deliberately AFTER the parse-time validation above (every printed row
+    # and section subtotal has already tied to the raw monthly detail) and
+    # BEFORE the workbook is written, so the deliverable carries the smoothed
+    # months while the statement itself was proved on the numbers it printed.
+    pro_notes, pro_checks, pro_ok = [], [], True
+    if args.prorate_bulk:
+        if n_mo != 12:
+            print(f"!! --prorate-bulk IGNORED: proration spreads an annual "
+                  f"amount across twelve months and this statement carries "
+                  f"{n_mo}. Nothing was changed.")
+        else:
+            pro_notes, pro_checks, pro_ok = prorate_bulk(lines, months)
+            cand = [l.name for l in lines
+                    if l.kind == "account" and not l.below
+                    and l.code in PRORATE_CODES]
+            print(f"--prorate-bulk: {len(cand)} account line(s) coded "
+                  f"{'/'.join(PRORATE_CODES)} considered; "
+                  f"{len(pro_notes)} prorated "
+                  f"(concentration test: non-zero months <= "
+                  f"{PRORATE_MAX_MONTHS}).")
+            if not pro_notes:
+                print("   none qualified - every insurance/tax line is "
+                      "already spread across the year; nothing changed.")
+            for nt in pro_notes:
+                print(f"   PRORATED {nt['name']} [{nt['code']} / "
+                      f"{CATEGORY_NAMES.get(nt['code'], nt['code'])}]: "
+                      f"was {nt['pattern']}; annual {nt['annual']:,.2f} -> "
+                      f"{nt['per']:,.2f}/mo x 11 + {nt['last']:,.2f} in "
+                      f"{nt['last_month']} (sum {nt['new_total']:,.2f}).")
+            for txt in prorate_notes_text(pro_notes, months):
+                print("   " + txt)
+
     ok, report = reconcile(lines)
+    if pro_checks:
+        report = report + "\n" + "\n".join(pro_checks)
+    ok &= pro_ok
 
     stats = {}
     flagged = []
@@ -4245,14 +4463,28 @@ def main(argv=None):
                             f"{b.replace(day=1):%m/%d}-{b:%m/%d/%Y} only "
                             f"({b.day} of {_month_end(b.year, b.month).day} "
                             f"days).")
+    note_line = pad_note or (meta.get("note_line") if meta else None)
+    if pro_notes:
+        # a prorated month is NOT what the statement printed for that month -
+        # say so on the face of the send-out tab, in red, never silent
+        pro_line = ("BULK PAYMENTS PRORATED (house rule): "
+                    + "; ".join(
+                        f"{nt['name']} - {nt['pattern']} respread as "
+                        f"{nt['per']:,.2f}/mo x {n_mo - 1} + "
+                        f"{nt['last']:,.2f} in {nt['last_month']}, annual "
+                        f"{nt['annual']:,.2f} unchanged"
+                        for nt in pro_notes)
+                    + ". Monthly figures for these lines are prorated, not "
+                      "as-posted; annual totals, Total Operating Expenses "
+                      "and NOI are exactly as the statement printed them.")
+        note_line = (note_line + " " + pro_line) if note_line else pro_line
     print("RawData sum-check (written values, tolerance +/- 10):")
     sumcheck_ok = write_workbook(args.template, out, sprop, months, lines,
                                  raw_only=args.raw_only,
                                  keep_raw=args.keep_raw,
                                  header_note=header_note,
                                  real_idx=real_idx,
-                                 note_line=pad_note or (
-                                     meta.get("note_line") if meta else None))
+                                 note_line=note_line)
     capex_out = f"Capex & Misc - {months[-1]:%B %Y}.xlsx"
     wrote_capex = write_capex(capex_out, sprop, months, lines,
                               real_idx=real_idx)
