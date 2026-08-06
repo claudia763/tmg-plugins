@@ -94,6 +94,59 @@ every registered detector on both sides and fails if any detector claims a
 file that is not its own. A too-loose detector is a silent bug — the wrong
 parser runs and still prints a reconciliation block.
 
+## 5b. THE STALE-MIRROR TRAP — check your base before you copy anything
+
+Added 8/6/2026 (Werner Creek). This is now the most likely way to destroy
+someone else's work, and it does not look like a conflict.
+
+`resources/tmg-plugins` is a **read-only mirror that lags `origin/main`**. Jobs
+seed `JOB\toolkit\` from the mirror and edit those copies, so by the time you
+merge, your "before" is not upstream's "before" — it is an older commit. Copying
+your edited file over the clone's then **silently deletes every change landed
+since the mirror was last refreshed.**
+
+On the Werner job the mirror was two toolkit commits behind. Sizes:
+
+| file | mirror | `origin/main` |
+|---|---|---|
+| `process_t12.py` | 206,035 B | 239,100 B |
+| `process_rent_roll.py` | 238,821 B | 272,939 B |
+
+A straight copy-over would have removed a concurrent job's
+`OwnerBlockRentRollXlsxParser` and `parse_t12_owner_calendar_year_tabs`
+(+1,423 lines) with a clean-looking diff and a passing test run.
+
+Do this instead:
+
+1. **Before touching anything**, compare the clone's copy to the mirror copy
+   byte-for-byte. If they differ, your base is stale — say so and stop copying.
+   (Rule out CRLF first: blob size should equal LF worktree size. If sizes match
+   and content differs, it is a real divergence, not autocrlf.)
+2. Reconstruct the true three-way merge: `base` = the mirror version,
+   `ours` = `JOB\toolkit\`, `theirs` = the clone's current version.
+3. Expect conflicts of the **"both sides appended a parser at the same anchor"**
+   shape — two jobs adding a class right after the last xlsx parser. Interleaving
+   is always the wrong resolution. Re-apply your additions onto the current
+   upstream surgically, asserting each anchor exists before using it, and keep
+   BOTH parsers with their intended registration positions (a deliberate
+   fallback parser must stay last; a tight-detector parser can go first).
+4. Re-run `parser_detection_regression.py` **after** the merge, with every
+   sibling detector present — not before. A parser that passed alone can
+   cross-claim once another lands.
+5. Prove the merge changed no behaviour: re-run the toolkit from the MERGED
+   copies and diff the output workbooks cell-for-cell against the deliverables
+   you already shipped. Zero diffs is the real proof; a tying reconciliation
+   block alone is weaker.
+6. Expect **redundant** changes too. Werner's `reconcile()` `key="total_sqft"`
+   addition was already upstream, character-identical, from the other job — drop
+   yours rather than committing a no-op hunk.
+
+Concurrency is now normal: several jobs edit these two files the same day. Treat
+"origin/main has moved" as the default assumption, not the exception.
+
+**Refresh the mirror when you notice it lagging**, or flag it in the delivery
+notes so the next job does not inherit the same dead base.
+
 ## 6. Housekeeping
 
 - Keep the working clone out of `outbox/` (only outbox files get emailed).
