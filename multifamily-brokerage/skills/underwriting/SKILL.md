@@ -18,10 +18,16 @@ description: >
 
 ## What this skill produces
 
-1. The completed underwriting model (.xlsx), fully recalculated with zero new
-   formula errors, all inputs populated, and return metrics green.
+1. The completed underwriting model (.xlsx) — named
+   **"<Initials> - <Property Name> - <Date> - Final.xlsx"** — built via the
+   Power Query-preserving surgery path (technical-notes §8 /
+   `scripts/surgery_example.py`), with all inputs populated, return metrics
+   green, and the template's Power Query / connections / query tables intact.
+   A worked example of the finished product is bundled at
+   `references/Initials - Property Name - Date - Final.xlsx`.
 2. A PDF of the **PDF Output - F&C** tab only (landscape, fit-to-width),
-   exported with the bundled `scripts/export_pdf.py`.
+   exported with the bundled `scripts/export_pdf.py` from the disposable
+   working copy.
 
 Read `references/model-map.md` for the exact cell map before touching the
 workbook, and `references/technical-notes.md` for the openpyxl/LibreOffice
@@ -30,8 +36,10 @@ row-capacity limits).
 
 ## Inputs to collect
 
-- The model workbook ("Initials  Property Name  Date …xlsx"). If two copies are
-  attached, use the one containing a `FinalRR` sheet.
+- The model workbook. If the user attaches one ("Initials  Property Name
+  Date …xlsx"), use it — and if two copies are attached, use the one
+  containing a `FinalRR` sheet. If none is attached, start from the bundled
+  blank template at `references/Template Model.xlsx`.
 - Rent roll workbook (redIQ export: `Rent Roll` + `Floor Plan Summary` sheets).
 - T-12 workbook (`Trailing 12 Month Statement` sheet with code column: r, ll,
   v, nr, bd, rw, rt, ro, oi, cs, rm, ad, m, pr, w, tr, e, o, mf, i, tx).
@@ -75,7 +83,11 @@ row-capacity limits).
    house defaults), then solve purchase price and LTV against the green rules
    below. Iterate: write inputs → recalc → read F5/F7/I8 → adjust.
 7. **Deliver** — export the PDF Output - F&C tab with
-   `scripts/export_pdf.py`, verify page 1 visually, send both files.
+   `scripts/export_pdf.py` from the working copy and verify page 1 visually.
+   Then build the deliverable workbook by zip-level surgery on a pristine
+   copy of the template (never a round-tripped save — see technical-notes §8
+   and `scripts/surgery_example.py`), name it
+   "<Initials> - <Property Name> - <Date> - Final.xlsx", and send both files.
 
 ## House rules (green thresholds)
 
