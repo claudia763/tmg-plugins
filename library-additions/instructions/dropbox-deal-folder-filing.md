@@ -3,7 +3,9 @@
 Covers: what goes where when a job asks you to maintain a `dropbox/` staging
 folder alongside `outbox/`. Read at the start of any job whose instructions
 mention Dropbox filing. The server mirrors `dropbox/` into the company deal
-folder for that email thread after the job.
+folder for that email thread after the job. For the infrastructure side —
+installing, running and linking the Dropbox client on the server so that mirror
+actually works — see `dropbox-headless-linux-setup.md`.
 
 ## The five categories (create only the ones you use)
 
