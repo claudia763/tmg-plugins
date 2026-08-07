@@ -66,13 +66,36 @@ simply **converting the file recalculates it**. No macro, no profile, no UNO bri
 
 ```bash
 python3 lo_model.py prep      template.xlsx prepped.xlsx     # external names/formulas
-python3 strip_external_links.py prepped.xlsx stripped.xlsx   # blocker 1
-python3 fix_treasury_yields.py  stripped.xlsx base.xlsx      # blocker 2
+python3 fix_treasury_yields.py  prepped.xlsx  t1.xlsx        # blocker 2
+python3 refresh_market_tabs.py  t1.xlsx       t2.xlsx --region <Metro>   # §5
+python3 strip_external_links.py t2.xlsx       base.xlsx      # blocker 1 — MUST BE LAST
 python3 populate_model.py       base.xlsx    populated.xlsx  # openpyxl writes
 soffice --headless --norestore -env:UserInstallation=file:///var/tmp/loconv \
         --convert-to xlsx --outdir out populated.xlsx        # ~20 s, full recalc
 python3 read_model.py out/populated.xlsx template.xlsx       # values + error diff
 ```
+
+**Ordering correction (Pointe at Garden Oaks, 8/7/2026) — this supersedes the order
+printed in earlier revisions of this file.** `strip_external_links.py` must run
+**after every openpyxl step**, not before them. openpyxl *preserves and rewrites* the
+`xl/externalLinks/*` parts on save, so stripping first and then running any
+openpyxl-based script puts them straight back and Blocker 1 is live again. The
+symptom is a base workbook that looks prepped but still carries the parts; verify
+rather than assume:
+
+```python
+import zipfile
+z = zipfile.ZipFile("base.xlsx"); wb = z.read("xl/workbook.xml").decode()
+assert not [n for n in z.namelist() if "externalLink" in n]
+assert "<externalReferences" not in wb
+```
+
+If you populate with openpyxl after stripping (the `populate_model.py` line above
+does exactly that), re-run the strip on the populated file too, or simply re-verify
+with the snippet and strip again if the assert trips.
+
+Note also that §1's "8 externalLink parts" is really **4 parts plus their 4 `_rels`
+files** = 8 zip entries. The strip script reports it the latter way.
 
 Timing on the 8/2026 template (67 sheets, ~106k formulas, 19 MB): **~20 s wall,
 ~27 s user (it threads), ~870 MB RSS.** Budget one recalc per tuning step — that is
@@ -103,8 +126,42 @@ The Windows note says the loan block is at `G61`/`M61`. In the 8/2026 template i
 |---|---|
 | `G62` | Loan Type — `=IF('UW - F&C'!AB13<$K$62,"Bridge — Debt Fund",$M$62)`, K62 = 0.75 occupancy |
 | **`M62`** | **the loan program name — SHIPS BLANK, must be set**, else the whole debt block is empty |
-| `G63` | Recourse Type · `G64` LTV · `G65` Interest Rate · `G66` Min DSCR · `G67` IO yrs · `G68` term months · `G69` amortization (literal 360) |
+| `G63` | Recourse Type · `G64` LTV · `G65` Interest Rate · `G66` DSCR Requirement · `G67` IO yrs · `G68` term months · `G69` amortization (literal 360) |
 | `G48` | `=IF($G$63="Non-Recourse",$K$48,$M$48)` — **note G63, not G62**. K48 = 0.20, M48 = 0.25, so agency debt targets a **20%** IRR. Read it at runtime. |
+
+Confirmed again on Pointe at Garden Oaks (8/7/2026), with three refinements:
+
+- `G66` is labelled **"DSCR Requirement (reference)"** and `M66` reads *"Info only —
+  sizing is LTV-driven."* The model does **not** size the loan to DSCR; it sizes to
+  LTV and reports the resulting DSCR. So you hit a DSCR target by lowering `G64`
+  (LTV), never by editing `G66`.
+- `model-map.md` says the `I8` green test is `I8 > G63`. That is **stale** — G63 is
+  the Recourse Type *string*. Since the whole block shifted down a row, the DSCR
+  threshold is `G66`. Read the conditional-format rule on I8 at runtime rather than
+  trusting either document.
+- `M62` genuinely has **no `<c>` element at all** in the shipped template (not an
+  empty string). Until you set it, `G62` recalcs to `#DIV/0!` and the entire debt
+  block is empty — which also means `G48` sees a blank `G63` and resolves to the
+  **25%** recourse target. Set `M62` *first*, then re-read `G48`: selecting a
+  non-recourse agency program flips the IRR target to **20%**.
+
+`'Loan Terms'!A4:A16` holds 13 programs (verbatim, em dash U+2014): Fannie Mae —
+Conventional · Freddie Mac — Conventional · Fannie Mae — Small Balance · Freddie Mac
+— SBL · HUD/FHA — 223(f) · HUD/FHA — 221(d)(4) · Life Company (LifeCo) · CMBS /
+Conduit · Bank — Balance Sheet · Credit Union · Bridge — Debt Fund · Bridge — Bank ·
+Mezzanine / Pref Equity.
+
+Green-test cell provenance (all three addresses in `model-map.md` are correct):
+`F5` Project IRR → `'PDF Output - F&C'!E34` · `F7` Avg Cash-on-Cash → `'PDF Output -
+F&C'!E33` · `I8` T-3 DSCR → `'UW - F&C'!AC42`.
+
+**The error-diff gate in §7 is meaningless on an unpopulated base.** With no deal
+data the `#DIV/0!` cascade stays lit, so a prepped-but-empty workbook diffs at ~9,600
+errors against the template's ~9,614 (Pointe: 9,612, with 998 "new" and 1,000
+"resolved" — the near-symmetry is the tell that these are the same cells changing
+error *string*, ~254 of them `#NAME?` from LibreOffice not implementing `_xlfn.*` /
+`_xludf.*`). Only run the gate **after** population, and only care about the
+`PDF Output - F&C` print area.
 
 Valid `M62` values are the `Loan Terms`!A4:A16 program names — copy the string out of
 the sheet, don't retype it (em dash). LTV and rate are INDEXed from `Loan Terms`, so
