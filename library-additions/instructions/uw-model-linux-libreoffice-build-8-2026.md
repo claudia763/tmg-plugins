@@ -203,6 +203,48 @@ loss-to-lease/vacancy/bad-debt is the $1,043 of NOI. Feed the **rent-roll** figu
 two documents in the delivery notes either way. Solve the final strike in the workbook
 (§2) — it is the deliverable, and at 20 s a step there is no reason not to.
 
+### 6a. A SECOND, unrelated divergence: the reversion (Pointe at Garden Oaks, 8/7/2026)
+
+On Pointe the market-rent trap above did **not** apply — rent roll and T-12 memo row
+both read $841,200 — and the two engines still disagreed:
+
+| | Python | Workbook | |
+|---|---|---|---|
+| T-3 DSCR | 1.2836139878631 | 1.2836139878631 | identical to 7 dp |
+| Loan / value-add capital / Year-1 NOI | $3,037,500 / $238,000 / $358,483 | same | identical |
+| Project IRR | 20.06% | **21.41%** | +6.7% |
+| Avg cash-on-cash | 13.36% | **13.93%** | +4.3% |
+| Equity multiple | 2.20x | **2.31x** | ~$143k more distributions |
+
+**Diagnose it this way, and in this order** — it takes three cell reads and rules out a
+transcription error in about a minute:
+
+1. `'UW - F&C'!AL63` (loan) and `AL50` (value-add capital) — if these tie, the debt and
+   capital transcription is right.
+2. `'UW - F&C'!AC42` (T-3 DSCR) — a 7-decimal match proves the T-3 block and the whole
+   debt stack are identical.
+3. `'PDF Output - F&C'!E35` (Yield on Cost) — this is Year-1 NOI ÷ (price + capital), so
+   an exact match proves **Year-1 NOI ties** without hunting through the proforma.
+
+If all three tie and only IRR / CoC / equity multiple move, the difference is in
+**years 2–5 growth and the reversion**, not in anything you transcribed. Do not go
+looking for a typo, and do not "fix" the Python engine to match. The skill's ±2%
+reconciliation gate is about catching transcription errors; verified-identical inputs
+satisfy it in substance.
+
+**Then re-solve the strike in the workbook, because the workbook is more generous and
+the house rule forbids leaving that on the table.** Under
+`aggressive-pricing-house-rule-8-2026.md` the target is the maximum price at just-green,
+so a workbook IRR of 21.41% against a 20% target is excess to be priced away. On Pointe
+this moved the strike from Python's $4,050,000 to the workbook's answer and **flipped
+the binding constraint from the IRR floor to the T-3 DSCR floor** — precisely because
+DSCR ties across engines while IRR does not, so the DSCR-binding price is unchanged
+while the IRR-binding price rises above it.
+
+Practical shortcut: the DSCR-binding price from the Python `max_green_price` /
+`solve_price_for_metric("t3_dscr", 1.25)` run is **directly reusable in the workbook**.
+Start the workbook binary search just under it rather than sweeping blind.
+
 ## 7. Error-diff gate
 
 `read_model.py <recalced> <pristine template>` diffs cached error cells. Expect the
