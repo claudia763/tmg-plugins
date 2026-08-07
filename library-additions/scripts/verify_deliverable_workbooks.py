@@ -184,16 +184,41 @@ def check_rent_roll(path, wb, wb_vals, rep):
 
     headers = {rr.cell(3, c).value: c for c in range(1, 30)
                if rr.cell(3, c).value}
+
+    # Contractual Rent only exists on OCCUPIED doors. A vacant unit has no
+    # in-place rent and a "Non-Rev" door (office / shop / storage / model) is
+    # not a rentable door at all, so demanding the column on every row makes
+    # this gate fail on every roll that has a vacancy - it must be scoped to
+    # the rows that can carry a value (8/2026, Aldine).
+    occ_col = headers.get("Occupancy Status")
+    occ_rows = None
+    if occ_col:
+        buckets = {}
+        for r in range(4, last + 1):
+            v = str(rr.cell(r, occ_col).value or "").strip() or "(blank)"
+            buckets[v] = buckets.get(v, 0) + 1
+        rep.note("occupancy status: "
+                 + ", ".join(f"{k} {v}" for k, v in sorted(buckets.items())))
+        occ_rows = [r for r in range(4, last + 1)
+                    if str(rr.cell(r, occ_col).value or "").strip().lower()
+                    == "occupied"]
+    else:
+        rep.fail("column 'Occupancy Status' not found in the header row")
+
     for label in ("Net Sf", "Bed", "Bath", "Market Rent", "Contractual Rent"):
         col = headers.get(label)
         if not col:
             rep.fail(f"column '{label}' not found in the header row")
             continue
-        filled = sum(1 for r in range(4, last + 1)
-                     if rr.cell(r, col).value not in (None, ""))
-        rep.check(filled == n,
-                  f"'{label}' populated on all {n} unit(s)",
-                  f"'{label}' populated on only {filled}/{n} unit(s) - a "
+        rows = (occ_rows if (label == "Contractual Rent"
+                             and occ_rows is not None)
+                else list(range(4, last + 1)))
+        scope = ("occupied unit(s)" if rows is occ_rows else "unit(s)")
+        m = len(rows)
+        filled = sum(1 for r in rows if rr.cell(r, col).value not in (None, ""))
+        rep.check(filled == m,
+                  f"'{label}' populated on all {m} {scope}",
+                  f"'{label}' populated on only {filled}/{m} {scope} - a "
                   f"column the source provides may have been dropped")
 
     # columns that are legitimately sparse: report the count, never fail
