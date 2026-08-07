@@ -1,0 +1,75 @@
+id,address_type,latitude,longitude,address_1,address_2,address_city,address_state,address_zip,zip_plus4,bedrooms,bathrooms,square_feet,year_built,company_name,listing_amount,price_per_sf,last_listing_creation_time,last_listing_deactivation_time,property_listing_status,distance_miles,url,amenities,community_unit_count
+4742 Yale St|1|2025-11-21,apartment,29.835123,-95.402351,4742 Yale St,L1,Houston,TX,77018,,1,1,851,,Hexa Property Management,1045,1.23,2025-11-21 00:00:00,,inactive,0.354,,,37
+4742 Yale St|2|2025-11-21,apartment,29.835123,-95.402351,4742 Yale St,L2,Houston,TX,77018,,1,1,851,,Hexa Property Management,880,1.03,2025-11-21 00:00:00,,inactive,0.354,,,37
+4742 Yale St|3|2024-09-06,apartment,29.835123,-95.402351,4742 Yale St,L3,Houston,TX,77018,,1,1,728,,Hexa Property Management,830,1.14,2024-09-06 00:00:00,,inactive,0.354,,,37
+101 E Tidwell Rd|1|2026-07-31,apartment,29.845783,-95.399094,101 E Tidwell Rd,L1,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1298,1.6,2026-07-31 00:00:00,,active,0.892,,,80
+101 E Tidwell Rd|2|2026-07-31,apartment,29.845783,-95.399094,101 E Tidwell Rd,L2,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1285,1.58,2026-07-31 00:00:00,,active,0.892,,,80
+101 E Tidwell Rd|3|2026-07-10,apartment,29.845783,-95.399094,101 E Tidwell Rd,L3,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1285,1.58,2026-07-10 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|4|2026-07-01,apartment,29.845783,-95.399094,101 E Tidwell Rd,L4,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1325,1.63,2026-07-01 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|5|2026-07-01,apartment,29.845783,-95.399094,101 E Tidwell Rd,L5,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1365,1.68,2026-07-01 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|6|2026-06-24,apartment,29.845783,-95.399094,101 E Tidwell Rd,L6,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1285,1.58,2026-06-24 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|7|2026-05-31,apartment,29.845783,-95.399094,101 E Tidwell Rd,L7,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1265,1.56,2026-05-31 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|8|2026-05-03,apartment,29.845783,-95.399094,101 E Tidwell Rd,L8,Houston,TX,77022,,1,1,654,,CDE Residential Llc,1135,1.74,2026-05-03 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|9|2026-04-05,apartment,29.845783,-95.399094,101 E Tidwell Rd,L9,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1285,1.58,2026-04-05 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|10|2026-03-26,apartment,29.845783,-95.399094,101 E Tidwell Rd,L10,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1245,1.53,2026-03-26 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|11|2026-03-10,apartment,29.845783,-95.399094,101 E Tidwell Rd,L11,Houston,TX,77022,,1,1,654,,CDE Residential Llc,1135,1.74,2026-03-10 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|12|2026-01-31,apartment,29.845783,-95.399094,101 E Tidwell Rd,L12,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1365,1.68,2026-01-31 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|13|2026-01-14,apartment,29.845783,-95.399094,101 E Tidwell Rd,L13,Houston,TX,77022,,1,1,654,,CDE Residential Llc,1425,2.18,2026-01-14 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|14|2026-01-08,apartment,29.845783,-95.399094,101 E Tidwell Rd,L14,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1225,1.51,2026-01-08 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|15|2026-01-05,apartment,29.845783,-95.399094,101 E Tidwell Rd,L15,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1285,1.58,2026-01-05 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|16|2026-01-03,apartment,29.845783,-95.399094,101 E Tidwell Rd,L16,Houston,TX,77022,,1,1,654,,CDE Residential Llc,980,1.5,2026-01-03 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|17|2026-01-01,apartment,29.845783,-95.399094,101 E Tidwell Rd,L17,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1325,1.63,2026-01-01 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|18|2025-12-13,apartment,29.845783,-95.399094,101 E Tidwell Rd,L18,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1425,1.75,2025-12-13 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|19|2025-10-02,apartment,29.845783,-95.399094,101 E Tidwell Rd,L19,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1168,1.44,2025-10-02 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|20|2025-10-01,apartment,29.845783,-95.399094,101 E Tidwell Rd,L20,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1365,1.68,2025-10-01 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|21|2025-09-11,apartment,29.845783,-95.399094,101 E Tidwell Rd,L21,Houston,TX,77022,,1,1,654,,CDE Residential Llc,1135,1.74,2025-09-11 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|22|2025-08-26,apartment,29.845783,-95.399094,101 E Tidwell Rd,L22,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1365,1.68,2025-08-26 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|23|2025-08-06,apartment,29.845783,-95.399094,101 E Tidwell Rd,L23,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1325,1.63,2025-08-06 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|24|2025-07-28,apartment,29.845783,-95.399094,101 E Tidwell Rd,L24,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1180,1.45,2025-07-28 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|25|2025-07-17,apartment,29.845783,-95.399094,101 E Tidwell Rd,L25,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1085,1.34,2025-07-17 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|26|2025-07-09,apartment,29.845783,-95.399094,101 E Tidwell Rd,L26,Houston,TX,77022,,1,1,612,,CDE Residential Llc,1135,1.85,2025-07-09 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|27|2025-03-23,apartment,29.845783,-95.399094,101 E Tidwell Rd,L27,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1365,1.68,2025-03-23 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|28|2025-03-05,apartment,29.845783,-95.399094,101 E Tidwell Rd,L28,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1325,1.63,2025-03-05 00:00:00,,inactive,0.892,,,80
+818 Pinemont Dr|1|2026-06-12,apartment,29.841841,-95.415443,818 Pinemont Dr,L1,Houston,TX,77018,,1,1,600,1972,TriArc Living LLC,1149,1.92,2026-06-12 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|2|2026-06-12,apartment,29.841841,-95.415443,818 Pinemont Dr,L2,Houston,TX,77018,,1,1,712,1972,TriArc Living LLC,1149,1.61,2026-06-12 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|3|2026-06-10,apartment,29.841841,-95.415443,818 Pinemont Dr,L3,Houston,TX,77018,,1,1,712,1972,TriArc Living LLC,1199,1.68,2026-06-10 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|4|2026-02-19,apartment,29.841841,-95.415443,818 Pinemont Dr,L4,Houston,TX,77018,,1,1,600,1972,TriArc Living LLC,1149,1.92,2026-02-19 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|5|2026-02-19,apartment,29.841841,-95.415443,818 Pinemont Dr,L5,Houston,TX,77018,,1,1,600,1972,TriArc Living LLC,1149,1.92,2026-02-19 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|6|2026-02-19,apartment,29.841841,-95.415443,818 Pinemont Dr,L6,Houston,TX,77018,,1,1,700,1972,TriArc Living LLC,1199,1.71,2026-02-19 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|7|2026-02-19,apartment,29.841841,-95.415443,818 Pinemont Dr,L7,Houston,TX,77018,,1,1,700,1972,TriArc Living LLC,1199,1.71,2026-02-19 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|8|2026-02-19,apartment,29.841841,-95.415443,818 Pinemont Dr,L8,Houston,TX,77018,,1,1,700,1972,TriArc Living LLC,1199,1.71,2026-02-19 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|9|2026-02-19,apartment,29.841841,-95.415443,818 Pinemont Dr,L9,Houston,TX,77018,,1,1,712,1972,TriArc Living LLC,1149,1.61,2026-02-19 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|10|2026-02-19,apartment,29.841841,-95.415443,818 Pinemont Dr,L10,Houston,TX,77018,,1,1,712,1972,TriArc Living LLC,1199,1.68,2026-02-19 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|11|2026-02-19,apartment,29.841841,-95.415443,818 Pinemont Dr,L11,Houston,TX,77018,,1,1,712,1972,TriArc Living LLC,1199,1.68,2026-02-19 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|12|2026-02-19,apartment,29.841841,-95.415443,818 Pinemont Dr,L12,Houston,TX,77018,,1,1,712,1972,TriArc Living LLC,1199,1.68,2026-02-19 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|13|2026-02-19,apartment,29.841841,-95.415443,818 Pinemont Dr,L13,Houston,TX,77018,,1,1,712,1972,TriArc Living LLC,1199,1.68,2026-02-19 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|14|2026-02-19,apartment,29.841841,-95.415443,818 Pinemont Dr,L14,Houston,TX,77018,,1,1,712,1972,TriArc Living LLC,1199,1.68,2026-02-19 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|15|2026-02-19,apartment,29.841841,-95.415443,818 Pinemont Dr,L15,Houston,TX,77018,,1,1,712,1972,TriArc Living LLC,1199,1.68,2026-02-19 00:00:00,,inactive,1.265,,,69
+735 W Cavalcade St|1|2026-05-15,apartment,29.803583,-95.380623,735 W Cavalcade St,L1,Houston,TX,77009,,1,1,500,1970,Cornerstone Income Properties,999,2.0,2026-05-15 00:00:00,,inactive,2.256,,,24
+735 W Cavalcade St|2|2026-05-15,apartment,29.803583,-95.380623,735 W Cavalcade St,L2,Houston,TX,77009,,1,1,658,1970,Cornerstone Income Properties,1069,1.62,2026-05-15 00:00:00,,active,2.256,,,24
+735 W Cavalcade St|3|2026-05-15,apartment,29.803583,-95.380623,735 W Cavalcade St,L3,Houston,TX,77009,,1,1,660,1970,Cornerstone Income Properties,1069,1.62,2026-05-15 00:00:00,,inactive,2.256,,,24
+735 W Cavalcade St|4|2026-05-15,apartment,29.803583,-95.380623,735 W Cavalcade St,L4,Houston,TX,77009,,2,1,660,1970,Cornerstone Income Properties,1149,1.74,2026-05-15 00:00:00,,inactive,2.256,,,24
+735 W Cavalcade St|5|2026-02-04,apartment,29.803583,-95.380623,735 W Cavalcade St,L5,Houston,TX,77009,,1,1,660,1970,Cornerstone Income Properties,1029,1.56,2026-02-04 00:00:00,,inactive,2.256,,,24
+735 W Cavalcade St|6|2026-02-04,apartment,29.803583,-95.380623,735 W Cavalcade St,L6,Houston,TX,77009,,1,1,660,1970,Cornerstone Income Properties,1029,1.56,2026-02-04 00:00:00,,inactive,2.256,,,24
+735 W Cavalcade St|7|2025-09-21,apartment,29.803583,-95.380623,735 W Cavalcade St,L7,Houston,TX,77009,,1,1,500,1970,Cornerstone Income Properties,999,2.0,2025-09-21 00:00:00,,inactive,2.256,,,24
+735 W Cavalcade St|8|2025-09-21,apartment,29.803583,-95.380623,735 W Cavalcade St,L8,Houston,TX,77009,,1,1,660,1970,Cornerstone Income Properties,1049,1.59,2025-09-21 00:00:00,,inactive,2.256,,,24
+1447 Heights Blvd|1|2026-07-23,apartment,29.79785,-95.398308,1447 Heights Blvd,L1,Houston,TX,77008,,1,1,581,,Agile Financing LLC dba Pro Plus,1425,2.45,2026-07-23 00:00:00,,active,2.430,,,11
+4411 Fulton St|1|2026-07-24,apartment,29.800438,-95.368446,4411 Fulton St,L1,Houston,TX,77009,,2,1,800,,TriArc Living LLC,975,1.22,2026-07-24 00:00:00,,inactive,2.826,,,63
+4411 Fulton St|2|2026-07-24,apartment,29.800438,-95.368446,4411 Fulton St,L2,Houston,TX,77009,,2,1,800,,TriArc Living LLC,975,1.22,2026-07-24 00:00:00,,inactive,2.826,,,63
+4411 Fulton St|3|2026-06-11,apartment,29.800438,-95.368446,4411 Fulton St,L3,Houston,TX,77009,,1,1,625,,TriArc Living LLC,875,1.4,2026-06-11 00:00:00,,inactive,2.826,,,63
+4411 Fulton St|4|2026-02-20,apartment,29.800438,-95.368446,4411 Fulton St,L4,Houston,TX,77009,,1,1,625,,TriArc Living LLC,849,1.36,2026-02-20 00:00:00,,inactive,2.826,,,63
+4411 Fulton St|5|2026-02-19,apartment,29.800438,-95.368446,4411 Fulton St,L5,Houston,TX,77009,,1,1,625,,TriArc Living LLC,849,1.36,2026-02-19 00:00:00,,inactive,2.826,,,63
+4411 Fulton St|6|2026-02-19,apartment,29.800438,-95.368446,4411 Fulton St,L6,Houston,TX,77009,,1,1,625,,TriArc Living LLC,849,1.36,2026-02-19 00:00:00,,inactive,2.826,,,63
+4411 Fulton St|7|2026-02-19,apartment,29.800438,-95.368446,4411 Fulton St,L7,Houston,TX,77009,,2,1,800,,TriArc Living LLC,949,1.19,2026-02-19 00:00:00,,inactive,2.826,,,63
+4411 Fulton St|8|2026-02-19,apartment,29.800438,-95.368446,4411 Fulton St,L8,Houston,TX,77009,,2,1,800,,TriArc Living LLC,949,1.19,2026-02-19 00:00:00,,inactive,2.826,,,63
+4411 Fulton St|9|2026-02-19,apartment,29.800438,-95.368446,4411 Fulton St,L9,Houston,TX,77009,,2,1,800,,TriArc Living LLC,975,1.22,2026-02-19 00:00:00,,inactive,2.826,,,63
+4411 Fulton St|10|2026-02-19,apartment,29.800438,-95.368446,4411 Fulton St,L10,Houston,TX,77009,,2,1,800,,TriArc Living LLC,975,1.22,2026-02-19 00:00:00,,inactive,2.826,,,63
+4411 Fulton St|11|2026-02-19,apartment,29.800438,-95.368446,4411 Fulton St,L11,Houston,TX,77009,,2,1,800,,TriArc Living LLC,949,1.19,2026-02-19 00:00:00,,inactive,2.826,,,63
+4300 Rosslyn Rd|1|2026-05-13,apartment,29.833349,-95.44445,4300 Rosslyn Rd,L1,Houston,TX,77018,,2,1,806,1961,"H L & M, Co., LLC.",1295,1.61,2026-05-13 00:00:00,,inactive,2.846,,,28
+4300 Rosslyn Rd|2|2026-05-13,apartment,29.833349,-95.44445,4300 Rosslyn Rd,L2,Houston,TX,77018,,1,1,615,1961,"H L & M, Co., LLC.",1095,1.78,2026-05-13 00:00:00,,inactive,2.846,,,28
+4300 Rosslyn Rd|3|2026-04-24,apartment,29.833349,-95.44445,4300 Rosslyn Rd,L3,Houston,TX,77018,,2,1,806,1961,"H L & M, Co., LLC.",1250,1.55,2026-04-24 00:00:00,,inactive,2.846,,,28
+4300 Rosslyn Rd|4|2026-02-17,apartment,29.833349,-95.44445,4300 Rosslyn Rd,L4,Houston,TX,77018,,2,1,806,1961,"H L & M, Co., LLC.",1399,1.74,2026-02-17 00:00:00,,inactive,2.846,,,28
+4300 Rosslyn Rd|5|2025-10-23,apartment,29.833349,-95.44445,4300 Rosslyn Rd,L5,Houston,TX,77018,,2,1,806,1961,"H L & M, Co., LLC.",1395,1.73,2025-10-23 00:00:00,,inactive,2.846,,,28
+4300 Rosslyn Rd|6|2025-08-07,apartment,29.833349,-95.44445,4300 Rosslyn Rd,L6,Houston,TX,77018,,2,1,806,1961,"H L & M, Co., LLC.",1295,1.61,2025-08-07 00:00:00,,inactive,2.846,,,28
+4300 Rosslyn Rd|7|2025-02-28,apartment,29.833349,-95.44445,4300 Rosslyn Rd,L7,Houston,TX,77018,,2,1,806,1961,"H L & M, Co., LLC.",1250,1.55,2025-02-28 00:00:00,,inactive,2.846,,,28
+4300 Rosslyn Rd|8|2025-02-28,apartment,29.833349,-95.44445,4300 Rosslyn Rd,L8,Houston,TX,77018,,2,1,806,1961,"H L & M, Co., LLC.",1250,1.55,2025-02-28 00:00:00,,inactive,2.846,,,28

@@ -24,6 +24,7 @@ import argparse
 import csv
 import glob
 import math
+import re
 import statistics as st
 import sys
 from collections import Counter
@@ -286,7 +287,8 @@ def parse_plan(text):
         raise argparse.ArgumentTypeError(
             "--plan needs LABEL:SF[:MARKET[:EFFECTIVE[:COUNT]]]")
     label = parts[0].strip()
-    beds = "".join(ch for ch in label if ch.isdigit()) or "0"
+    m = re.match(r"\d+", label)          # leading digits only: "1x1 Classic"
+    beds = m.group(0) if m else "0"       # parses as 1 bed, not 11
     return {"label": label, "beds": beds, "sf": float(parts[1]),
             "market": float(parts[2]) if len(parts) > 2 and parts[2] else None,
             "effective": float(parts[3]) if len(parts) > 3 and parts[3] else None,

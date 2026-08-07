@@ -1,0 +1,19 @@
+{
+  "name": "Magnolia Place",
+  "address": "303 Goessler St",
+  "city": "Brenham",
+  "state": "TX",
+  "zip": "77833",
+  "year_built": null,
+  "units": 20,
+  "lat": 30.14891,
+  "lon": -96.39483,
+  "plans": [
+    {"label": "1x1 Classic", "bed": 1, "sf": 500, "market": 800,  "effective": 862.50,  "units": 2},
+    {"label": "1x1 Partial", "bed": 1, "sf": 500, "market": 900,  "effective": 975,     "units": 1},
+    {"label": "1x1 Premium", "bed": 1, "sf": 500, "market": 866.67, "effective": 925,   "units": 3},
+    {"label": "2x1 Classic", "bed": 2, "sf": 850, "market": 1000, "effective": 920,     "units": 4},
+    {"label": "2x1 Partial", "bed": 2, "sf": 850, "market": 1100, "effective": 1107.50, "units": 2},
+    {"label": "2x1 Premium", "bed": 2, "sf": 850, "market": 1200, "effective": 1096.88, "units": 8}
+  ]
+}

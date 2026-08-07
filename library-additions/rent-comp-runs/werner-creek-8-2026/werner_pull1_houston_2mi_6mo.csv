@@ -1,0 +1,113 @@
+id,address_type,latitude,longitude,address_1,address_2,address_city,address_state,address_zip,zip_plus4,bedrooms,bathrooms,square_feet,year_built,company_name,listing_amount,price_per_sf,last_listing_creation_time,last_listing_deactivation_time,property_listing_status,distance_miles,url,amenities,community_unit_count
+311 E Whitney St|1|2026-07-10,apartment,29.831348,-95.395554,311 E Whitney St,L1,Houston,TX,77022,,2,1,780,1955,"East Whitney Management, LLC",1100,1.41,2026-07-10 00:00:00,,active,0.142,,,72
+311 E Whitney St|2|2026-05-06,apartment,29.831348,-95.395554,311 E Whitney St,L2,Houston,TX,77022,,2,1,780,1955,"East Whitney Management, LLC",1050,1.35,2026-05-06 00:00:00,,inactive,0.142,,,72
+411 E Whitney St|1|2026-06-18,apartment,29.830698,-95.394554,411 E Whitney St,L1,Houston,TX,77022,,2,1,850,1956,"East Whitney Management, LLC",995,1.17,2026-06-18 00:00:00,,inactive,0.215,,,72
+411 E Whitney St|2|2026-04-14,apartment,29.830698,-95.394554,411 E Whitney St,L2,Houston,TX,77022,,2,1,850,1956,"East Whitney Management, LLC",1050,1.24,2026-04-14 00:00:00,,inactive,0.215,,,72
+101 E Tidwell Rd|1|2026-07-31,apartment,29.845783,-95.399094,101 E Tidwell Rd,L1,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1298,1.6,2026-07-31 00:00:00,,active,0.892,,,80
+101 E Tidwell Rd|2|2026-07-31,apartment,29.845783,-95.399094,101 E Tidwell Rd,L2,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1285,1.58,2026-07-31 00:00:00,,active,0.892,,,80
+101 E Tidwell Rd|3|2026-07-10,apartment,29.845783,-95.399094,101 E Tidwell Rd,L3,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1285,1.58,2026-07-10 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|4|2026-07-01,apartment,29.845783,-95.399094,101 E Tidwell Rd,L4,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1325,1.63,2026-07-01 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|5|2026-07-01,apartment,29.845783,-95.399094,101 E Tidwell Rd,L5,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1365,1.68,2026-07-01 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|6|2026-06-24,apartment,29.845783,-95.399094,101 E Tidwell Rd,L6,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1285,1.58,2026-06-24 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|7|2026-05-31,apartment,29.845783,-95.399094,101 E Tidwell Rd,L7,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1265,1.56,2026-05-31 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|8|2026-05-03,apartment,29.845783,-95.399094,101 E Tidwell Rd,L8,Houston,TX,77022,,1,1,654,,CDE Residential Llc,1135,1.74,2026-05-03 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|9|2026-04-05,apartment,29.845783,-95.399094,101 E Tidwell Rd,L9,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1285,1.58,2026-04-05 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|10|2026-03-26,apartment,29.845783,-95.399094,101 E Tidwell Rd,L10,Houston,TX,77022,,2,1,812,,CDE Residential Llc,1245,1.53,2026-03-26 00:00:00,,inactive,0.892,,,80
+101 E Tidwell Rd|11|2026-03-10,apartment,29.845783,-95.399094,101 E Tidwell Rd,L11,Houston,TX,77022,,1,1,654,,CDE Residential Llc,1135,1.74,2026-03-10 00:00:00,,inactive,0.892,,,80
+505 E 32nd St|1|2026-02-24,apartment,29.815727,-95.39328,505 E 32nd St,L1,Houston,TX,77018,,2,1,756,2005,KW Management,677,0.9,2026-02-24 00:00:00,,inactive,1.214,,,5
+818 Pinemont Dr|1|2026-06-12,apartment,29.841841,-95.415443,818 Pinemont Dr,L1,Houston,TX,77018,,1,1,600,1972,TriArc Living LLC,1149,1.92,2026-06-12 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|2|2026-06-12,apartment,29.841841,-95.415443,818 Pinemont Dr,L2,Houston,TX,77018,,1,1,712,1972,TriArc Living LLC,1149,1.61,2026-06-12 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|3|2026-06-10,apartment,29.841841,-95.415443,818 Pinemont Dr,L3,Houston,TX,77018,,1,1,712,1972,TriArc Living LLC,1199,1.68,2026-06-10 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|4|2026-02-19,apartment,29.841841,-95.415443,818 Pinemont Dr,L4,Houston,TX,77018,,1,1,600,1972,TriArc Living LLC,1149,1.92,2026-02-19 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|5|2026-02-19,apartment,29.841841,-95.415443,818 Pinemont Dr,L5,Houston,TX,77018,,1,1,600,1972,TriArc Living LLC,1149,1.92,2026-02-19 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|6|2026-02-19,apartment,29.841841,-95.415443,818 Pinemont Dr,L6,Houston,TX,77018,,1,1,700,1972,TriArc Living LLC,1199,1.71,2026-02-19 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|7|2026-02-19,apartment,29.841841,-95.415443,818 Pinemont Dr,L7,Houston,TX,77018,,1,1,700,1972,TriArc Living LLC,1199,1.71,2026-02-19 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|8|2026-02-19,apartment,29.841841,-95.415443,818 Pinemont Dr,L8,Houston,TX,77018,,1,1,700,1972,TriArc Living LLC,1199,1.71,2026-02-19 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|9|2026-02-19,apartment,29.841841,-95.415443,818 Pinemont Dr,L9,Houston,TX,77018,,1,1,712,1972,TriArc Living LLC,1149,1.61,2026-02-19 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|10|2026-02-19,apartment,29.841841,-95.415443,818 Pinemont Dr,L10,Houston,TX,77018,,1,1,712,1972,TriArc Living LLC,1199,1.68,2026-02-19 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|11|2026-02-19,apartment,29.841841,-95.415443,818 Pinemont Dr,L11,Houston,TX,77018,,1,1,712,1972,TriArc Living LLC,1199,1.68,2026-02-19 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|12|2026-02-19,apartment,29.841841,-95.415443,818 Pinemont Dr,L12,Houston,TX,77018,,1,1,712,1972,TriArc Living LLC,1199,1.68,2026-02-19 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|13|2026-02-19,apartment,29.841841,-95.415443,818 Pinemont Dr,L13,Houston,TX,77018,,1,1,712,1972,TriArc Living LLC,1199,1.68,2026-02-19 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|14|2026-02-19,apartment,29.841841,-95.415443,818 Pinemont Dr,L14,Houston,TX,77018,,1,1,712,1972,TriArc Living LLC,1199,1.68,2026-02-19 00:00:00,,inactive,1.265,,,69
+818 Pinemont Dr|15|2026-02-19,apartment,29.841841,-95.415443,818 Pinemont Dr,L15,Houston,TX,77018,,1,1,712,1972,TriArc Living LLC,1199,1.68,2026-02-19 00:00:00,,inactive,1.265,,,69
+6212 Northline Dr|1|2026-07-31,apartment,29.85497,-95.39652,6212 Northline Dr,L1,Houston,TX,77076,,2,1,894,,La Casita,966,1.08,2026-07-31 00:00:00,,inactive,1.518,,,652
+6212 Northline Dr|2|2026-06-19,apartment,29.85497,-95.39652,6212 Northline Dr,L2,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-06-19 00:00:00,,inactive,1.518,,,652
+6212 Northline Dr|3|2026-06-19,apartment,29.85497,-95.39652,6212 Northline Dr,L3,Houston,TX,77076,,2,1,942,,La Casita,1066,1.13,2026-06-19 00:00:00,,inactive,1.518,,,652
+6212 Northline Dr|4|2026-05-03,apartment,29.85497,-95.39652,6212 Northline Dr,L4,Houston,TX,77076,,2,1,894,,La Casita,966,1.08,2026-05-03 00:00:00,,inactive,1.518,,,652
+6212 Northline Dr|5|2026-02-15,apartment,29.85497,-95.39652,6212 Northline Dr,L5,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-02-15 00:00:00,,inactive,1.518,,,652
+6212 Northline Dr|6|2026-02-15,apartment,29.85497,-95.39652,6212 Northline Dr,L6,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-02-15 00:00:00,,inactive,1.518,,,652
+203 Rosamond St|1|2026-05-31,apartment,29.85496,-95.39766,203 Rosamond St,L1,Houston,TX,77076,,2,1,1156,,La Casita,1301,1.13,2026-05-31 00:00:00,,inactive,1.518,,,652
+203 Rosamond St|2|2026-03-02,apartment,29.85496,-95.39766,203 Rosamond St,L2,Houston,TX,77076,,2,1,1156,,La Casita,1301,1.13,2026-03-02 00:00:00,,inactive,1.518,,,652
+203 Rosamond St|3|2026-03-02,apartment,29.85496,-95.39766,203 Rosamond St,L3,Houston,TX,77076,,2,1,1156,,La Casita,1301,1.13,2026-03-02 00:00:00,,inactive,1.518,,,652
+233 Rosamond St|1|2026-07-31,apartment,29.85498,-95.39642,233 Rosamond St,L1,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-07-31 00:00:00,,active,1.519,,,652
+233 Rosamond St|2|2026-06-19,apartment,29.85498,-95.39642,233 Rosamond St,L2,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-06-19 00:00:00,,inactive,1.519,,,652
+233 Rosamond St|3|2026-06-14,apartment,29.85498,-95.39642,233 Rosamond St,L3,Houston,TX,77076,,2,1,894,,La Casita,966,1.08,2026-06-14 00:00:00,,active,1.519,,,652
+233 Rosamond St|4|2026-03-20,apartment,29.85498,-95.39642,233 Rosamond St,L4,Houston,TX,77076,,2,1,894,,La Casita,966,1.08,2026-03-20 00:00:00,,inactive,1.519,,,652
+233 Rosamond St|5|2026-03-10,apartment,29.85498,-95.39642,233 Rosamond St,L5,Houston,TX,77076,,1,1,604,,La Casita,766,1.27,2026-03-10 00:00:00,,inactive,1.519,,,652
+233 Rosamond St|6|2026-03-02,apartment,29.85498,-95.39642,233 Rosamond St,L6,Houston,TX,77076,,2,1,894,,La Casita,966,1.08,2026-03-02 00:00:00,,inactive,1.519,,,652
+233 Rosamond St|7|2026-03-02,apartment,29.85498,-95.39642,233 Rosamond St,L7,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-03-02 00:00:00,,inactive,1.519,,,652
+233 Rosamond St|8|2026-02-15,apartment,29.85498,-95.39642,233 Rosamond St,L8,Houston,TX,77076,,2,1,942,,La Casita,1066,1.13,2026-02-15 00:00:00,,inactive,1.519,,,652
+233 Rosamond St|9|2026-02-12,apartment,29.85498,-95.39642,233 Rosamond St,L9,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-02-12 00:00:00,,inactive,1.519,,,652
+311 Rosamond St|1|2026-07-31,apartment,29.85499,-95.395,311 Rosamond St,L1,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-07-31 00:00:00,,inactive,1.524,,,652
+311 Rosamond St|2|2026-07-31,apartment,29.85499,-95.395,311 Rosamond St,L2,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-07-31 00:00:00,,inactive,1.524,,,652
+303 Rosamond St|1|2026-07-31,apartment,29.85499,-95.39509,303 Rosamond St,L1,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-07-31 00:00:00,,active,1.524,,,652
+303 Rosamond St|2|2026-04-22,apartment,29.85499,-95.39509,303 Rosamond St,L2,Houston,TX,77076,,2,1,942,,La Casita,1066,1.13,2026-04-22 00:00:00,,inactive,1.524,,,652
+303 Rosamond St|3|2026-03-22,apartment,29.85499,-95.39509,303 Rosamond St,L3,Houston,TX,77076,,1,1,604,,La Casita,766,1.27,2026-03-22 00:00:00,,inactive,1.524,,,652
+303 Rosamond St|4|2026-03-10,apartment,29.85499,-95.39509,303 Rosamond St,L4,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-03-10 00:00:00,,inactive,1.524,,,652
+303 Rosamond St|5|2026-03-02,apartment,29.85499,-95.39509,303 Rosamond St,L5,Houston,TX,77076,,2,1,942,,La Casita,1066,1.13,2026-03-02 00:00:00,,inactive,1.524,,,652
+303 Rosamond St|6|2026-03-02,apartment,29.85499,-95.39509,303 Rosamond St,L6,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-03-02 00:00:00,,inactive,1.524,,,652
+303 Rosamond St|7|2026-03-02,apartment,29.85499,-95.39509,303 Rosamond St,L7,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-03-02 00:00:00,,inactive,1.524,,,652
+303 Rosamond St|8|2026-03-02,apartment,29.85499,-95.39509,303 Rosamond St,L8,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-03-02 00:00:00,,inactive,1.524,,,652
+315 Rosamond St|1|2026-06-19,apartment,29.85499,-95.39494,315 Rosamond St,L1,Houston,TX,77076,,2,1,894,,La Casita,966,1.08,2026-06-19 00:00:00,,inactive,1.524,,,652
+315 Rosamond St|2|2026-06-14,apartment,29.85499,-95.39494,315 Rosamond St,L2,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-06-14 00:00:00,,inactive,1.524,,,652
+315 Rosamond St|3|2026-04-10,apartment,29.85499,-95.39494,315 Rosamond St,L3,Houston,TX,77076,,2,1,894,,La Casita,966,1.08,2026-04-10 00:00:00,,inactive,1.524,,,652
+6302 Northline Dr|1|2026-07-31,apartment,29.85562,-95.39653,6302 Northline Dr,L1,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-07-31 00:00:00,,inactive,1.563,,,652
+6302 Northline Dr|2|2026-06-19,apartment,29.85562,-95.39653,6302 Northline Dr,L2,Houston,TX,77076,,1,1,604,,La Casita,766,1.27,2026-06-19 00:00:00,,inactive,1.563,,,652
+6302 Northline Dr|3|2026-06-19,apartment,29.85562,-95.39653,6302 Northline Dr,L3,Houston,TX,77076,,2,1,894,,La Casita,966,1.08,2026-06-19 00:00:00,,active,1.563,,,652
+6302 Northline Dr|4|2026-06-19,apartment,29.85562,-95.39653,6302 Northline Dr,L4,Houston,TX,77076,,2,1,942,,La Casita,1066,1.13,2026-06-19 00:00:00,,inactive,1.563,,,652
+6302 Northline Dr|5|2026-06-18,apartment,29.85562,-95.39653,6302 Northline Dr,L5,Houston,TX,77076,,2,1,894,,La Casita,966,1.08,2026-06-18 00:00:00,,active,1.563,,,652
+6302 Northline Dr|6|2026-03-22,apartment,29.85562,-95.39653,6302 Northline Dr,L6,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-03-22 00:00:00,,inactive,1.563,,,652
+6302 Northline Dr|7|2026-03-22,apartment,29.85562,-95.39653,6302 Northline Dr,L7,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-03-22 00:00:00,,inactive,1.563,,,652
+6302 Northline Dr|8|2026-03-02,apartment,29.85562,-95.39653,6302 Northline Dr,L8,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-03-02 00:00:00,,inactive,1.563,,,652
+6302 Northline Dr|9|2026-02-15,apartment,29.85562,-95.39653,6302 Northline Dr,L9,Houston,TX,77076,,2,1,894,,La Casita,966,1.08,2026-02-15 00:00:00,,inactive,1.563,,,652
+6302 Northline Dr|10|2026-02-12,apartment,29.85562,-95.39653,6302 Northline Dr,L10,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-02-12 00:00:00,,inactive,1.563,,,652
+6314 Northline Dr|1|2026-03-20,apartment,29.85571,-95.39654,6314 Northline Dr,L1,Houston,TX,77076,,2,1,1156,,La Casita,1301,1.13,2026-03-20 00:00:00,,inactive,1.569,,,652
+6314 Northline Dr|2|2026-03-02,apartment,29.85571,-95.39654,6314 Northline Dr,L2,Houston,TX,77076,,2,1,1156,,La Casita,1301,1.13,2026-03-02 00:00:00,,inactive,1.569,,,652
+215 Sunnyside St|1|2026-07-31,apartment,29.85671,-95.39574,215 Sunnyside St,L1,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-07-31 00:00:00,,active,1.640,,,652
+215 Sunnyside St|2|2026-06-19,apartment,29.85671,-95.39574,215 Sunnyside St,L2,Houston,TX,77076,,1,1,604,,La Casita,766,1.27,2026-06-19 00:00:00,,inactive,1.640,,,652
+215 Sunnyside St|3|2026-06-19,apartment,29.85671,-95.39574,215 Sunnyside St,L3,Houston,TX,77076,,1,1,604,,La Casita,766,1.27,2026-06-19 00:00:00,,active,1.640,,,652
+215 Sunnyside St|4|2026-06-19,apartment,29.85671,-95.39574,215 Sunnyside St,L4,Houston,TX,77076,,1,1,604,,La Casita,766,1.27,2026-06-19 00:00:00,,inactive,1.640,,,652
+215 Sunnyside St|5|2026-06-19,apartment,29.85671,-95.39574,215 Sunnyside St,L5,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-06-19 00:00:00,,inactive,1.640,,,652
+215 Sunnyside St|6|2026-04-03,apartment,29.85671,-95.39574,215 Sunnyside St,L6,Houston,TX,77076,,1,1,604,,La Casita,766,1.27,2026-04-03 00:00:00,,inactive,1.640,,,652
+215 Sunnyside St|7|2026-03-20,apartment,29.85671,-95.39574,215 Sunnyside St,L7,Houston,TX,77076,,1,1,604,,La Casita,766,1.27,2026-03-20 00:00:00,,inactive,1.640,,,652
+215 Sunnyside St|8|2026-03-20,apartment,29.85671,-95.39574,215 Sunnyside St,L8,Houston,TX,77076,,1,1,604,,La Casita,766,1.27,2026-03-20 00:00:00,,inactive,1.640,,,652
+215 Sunnyside St|9|2026-03-10,apartment,29.85671,-95.39574,215 Sunnyside St,L9,Houston,TX,77076,,1,1,604,,La Casita,766,1.27,2026-03-10 00:00:00,,inactive,1.640,,,652
+215 Sunnyside St|10|2026-03-02,apartment,29.85671,-95.39574,215 Sunnyside St,L10,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-03-02 00:00:00,,inactive,1.640,,,652
+215 Sunnyside St|11|2026-02-12,apartment,29.85671,-95.39574,215 Sunnyside St,L11,Houston,TX,77076,,1,1,604,,La Casita,766,1.27,2026-02-12 00:00:00,,inactive,1.640,,,652
+225 Sunnyside St|1|2026-06-18,apartment,29.85674,-95.39566,225 Sunnyside St,L1,Houston,TX,77076,,1,1,604,,La Casita,766,1.27,2026-06-18 00:00:00,,inactive,1.642,,,652
+225 Sunnyside St|2|2026-03-20,apartment,29.85674,-95.39566,225 Sunnyside St,L2,Houston,TX,77076,,1,1,604,,La Casita,766,1.27,2026-03-20 00:00:00,,inactive,1.642,,,652
+225 Sunnyside St|3|2026-03-10,apartment,29.85674,-95.39566,225 Sunnyside St,L3,Houston,TX,77076,,1,1,604,,La Casita,766,1.27,2026-03-10 00:00:00,,inactive,1.642,,,652
+225 Sunnyside St|4|2026-03-10,apartment,29.85674,-95.39566,225 Sunnyside St,L4,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-03-10 00:00:00,,inactive,1.642,,,652
+300 Sunnyside St|1|2026-07-31,apartment,29.85673,-95.39505,300 Sunnyside St,L1,Houston,TX,77076,,2,1,894,,La Casita,966,1.08,2026-07-31 00:00:00,,inactive,1.644,,,652
+300 Sunnyside St|2|2026-07-14,apartment,29.85673,-95.39505,300 Sunnyside St,L2,Houston,TX,77076,,2,1,942,,La Casita,1066,1.13,2026-07-14 00:00:00,,active,1.644,,,652
+300 Sunnyside St|3|2026-07-10,apartment,29.85673,-95.39505,300 Sunnyside St,L3,Houston,TX,77076,,2,1,942,,La Casita,1066,1.13,2026-07-10 00:00:00,,inactive,1.644,,,652
+300 Sunnyside St|4|2026-06-08,apartment,29.85673,-95.39505,300 Sunnyside St,L4,Houston,TX,77076,,2,1,894,,La Casita,966,1.08,2026-06-08 00:00:00,,active,1.644,,,652
+300 Sunnyside St|5|2026-03-22,apartment,29.85673,-95.39505,300 Sunnyside St,L5,Houston,TX,77076,,2,1,894,,La Casita,966,1.08,2026-03-22 00:00:00,,inactive,1.644,,,652
+300 Sunnyside St|6|2026-03-22,apartment,29.85673,-95.39505,300 Sunnyside St,L6,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-03-22 00:00:00,,inactive,1.644,,,652
+300 Sunnyside St|7|2026-03-10,apartment,29.85673,-95.39505,300 Sunnyside St,L7,Houston,TX,77076,,1,1,604,,La Casita,766,1.27,2026-03-10 00:00:00,,inactive,1.644,,,652
+306 Sunnyside St|1|2026-06-19,apartment,29.85673,-95.39489,306 Sunnyside St,L1,Houston,TX,77076,,1,1,604,,La Casita,766,1.27,2026-06-19 00:00:00,,inactive,1.644,,,652
+306 Sunnyside St|2|2026-06-19,apartment,29.85673,-95.39489,306 Sunnyside St,L2,Houston,TX,77076,,1,1,604,,La Casita,766,1.27,2026-06-19 00:00:00,,inactive,1.644,,,652
+306 Sunnyside St|3|2026-06-14,apartment,29.85673,-95.39489,306 Sunnyside St,L3,Houston,TX,77076,,1,1,604,,La Casita,766,1.27,2026-06-14 00:00:00,,inactive,1.644,,,652
+306 Sunnyside St|4|2026-06-14,apartment,29.85673,-95.39489,306 Sunnyside St,L4,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-06-14 00:00:00,,inactive,1.644,,,652
+306 Sunnyside St|5|2026-06-09,apartment,29.85673,-95.39489,306 Sunnyside St,L5,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-06-09 00:00:00,,inactive,1.644,,,652
+306 Sunnyside St|6|2026-03-22,apartment,29.85673,-95.39489,306 Sunnyside St,L6,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-03-22 00:00:00,,inactive,1.644,,,652
+306 Sunnyside St|7|2026-03-20,apartment,29.85673,-95.39489,306 Sunnyside St,L7,Houston,TX,77076,,2,1,942,,La Casita,1066,1.13,2026-03-20 00:00:00,,inactive,1.644,,,652
+306 Sunnyside St|8|2026-03-10,apartment,29.85673,-95.39489,306 Sunnyside St,L8,Houston,TX,77076,,2,1,942,,La Casita,1066,1.13,2026-03-10 00:00:00,,inactive,1.644,,,652
+306 Sunnyside St|9|2026-03-02,apartment,29.85673,-95.39489,306 Sunnyside St,L9,Houston,TX,77076,,2,1,894,,La Casita,966,1.08,2026-03-02 00:00:00,,inactive,1.644,,,652
+310 Sunnyside St|1|2026-06-14,apartment,29.85673,-95.39486,310 Sunnyside St,L1,Houston,TX,77076,,1,1,604,,La Casita,766,1.27,2026-06-14 00:00:00,,inactive,1.644,,,652
+310 Sunnyside St|2|2026-06-09,apartment,29.85673,-95.39486,310 Sunnyside St,L2,Houston,TX,77076,,1,1,604,,La Casita,766,1.27,2026-06-09 00:00:00,,inactive,1.644,,,652
+310 Sunnyside St|3|2026-03-10,apartment,29.85673,-95.39486,310 Sunnyside St,L3,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-03-10 00:00:00,,inactive,1.644,,,652
+310 Sunnyside St|4|2026-02-12,apartment,29.85673,-95.39486,310 Sunnyside St,L4,Houston,TX,77076,,1,1,684,,La Casita,786,1.15,2026-02-12 00:00:00,,inactive,1.644,,,652
+305 Sunnyside St|1|2026-03-20,apartment,29.85691,-95.39489,305 Sunnyside St,L1,Houston,TX,77076,,2,1,942,,La Casita,1066,1.13,2026-03-20 00:00:00,,inactive,1.657,,,652
+305 Sunnyside St|2|2026-03-10,apartment,29.85691,-95.39489,305 Sunnyside St,L2,Houston,TX,77076,,2,1,894,,La Casita,966,1.08,2026-03-10 00:00:00,,inactive,1.657,,,652
+313 Sunnyside St|1|2026-07-31,apartment,29.857004,-95.394386,313 Sunnyside St,L1,Houston,TX,77076,,2,1,942,,La Casita,1066,1.13,2026-07-31 00:00:00,,active,1.666,,,652

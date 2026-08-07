@@ -1,0 +1,20 @@
+{
+  "name": "Werner Creek Apartments",
+  "address": "4635 Werner St",
+  "city": "Houston",
+  "state": "TX",
+  "zip": "77022",
+  "year_built": 1971,
+  "units": 36,
+  "lat": 29.833,
+  "lon": -95.39697,
+  "plans": [
+    {"label": "1x1-600", "bed": 1, "sf": 600, "market": 932,  "effective": 852,  "units": 14},
+    {"label": "1x1-630", "bed": 1, "sf": 630, "market": 970,  "effective": 931,  "units": 14},
+    {"label": "1x1-840", "bed": 1, "sf": 840, "market": 950,  "effective": 1050, "units": 1},
+    {"label": "2x1-829", "bed": 2, "sf": 829, "market": 1100, "effective": 1100, "units": 1},
+    {"label": "2x1-840", "bed": 2, "sf": 840, "market": 1150, "effective": 1075, "units": 1},
+    {"label": "2x1-900", "bed": 2, "sf": 900, "market": 1150, "effective": 1125, "units": 1},
+    {"label": "2x1-930", "bed": 2, "sf": 930, "market": 1138, "effective": 1094, "units": 4}
+  ]
+}
