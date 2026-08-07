@@ -229,3 +229,20 @@ Fitzhugh Investment LP) at an undisclosed price — Texas is a non-disclosure st
 so it is outside the 3-year window and there is no in-house trade to anchor to.
 DCAD 2026 certified market value $36,750,000 ($162,611/unit) is an assessment, not a
 market indication; label it as such if it comes up.
+
+## 8. Follow-up: three more universe defects, and a state-law caveat
+
+`sales-comps-pipeline-hardening-8-2026.md` (8/7/2026) extends this file with
+three defects §6b does not cover — the same sale ingested twice from two feeds
+and BOTH reaching the client sheet, portfolio allocations that are labelled in
+plain text in the address field (298 of 3,990 rows) and can be screened
+automatically, and a reproducible way to apply verified corrections
+(`scripts/apply_comp_corrections.py`) instead of hand-editing a grid. It also
+adds an ellipsis fallback to the §5 PDF patch, which still overprints at the
+5pt floor once labels get longer.
+
+**Important correction to §6b:** "Texas is a non-disclosure state" is a Texas
+fact, not a general one. Oklahoma records the consideration (doc-stamp tax,
+68 O.S. §3201), and on the OKC run 5 of 5 prices were verified against deeds —
+two of which disagreed with the database. Check the subject state's rule before
+writing "price not publicly reported" on a deliverable.
