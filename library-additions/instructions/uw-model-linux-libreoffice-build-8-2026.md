@@ -116,6 +116,8 @@ pattern). Use `pkill -x soffice.bin` or kill by PID.
 | `fix_treasury_yields.py` | — | Blocker 2 |
 | `refresh_market_tabs.py` | `refresh_agency_region.py` | Repopulates `Agency Region` from a CMA `AgencyDrift` sheet **and** `YardiProjections` from the submarket forecast |
 | `solve_price.py` | `model_price_solver.py` | Sets `G50`, converts, reads F5/F7/I8; prints the max-green price |
+| `refresh_sale_comps.py` | — | Loads this deal's comps into `Auto Sales` / `Output_Analysis_Data__2` and sets the include marks — s.5a |
+| `swap_workbook_image.py` | COM `Shapes.AddPicture` | Swaps one `xl/media/imageN.png` at zip level, keeping its anchor and frame — s.5a |
 
 ## 4. Current-template cell map corrections (beyond the Windows note)
 
@@ -172,7 +174,7 @@ Also: `Factors` row 23 "Old Vintage (1980s or older)" is **100 bps** in this tem
 not the 25 bps in `model-map.md`. `Factors!N16/N17` are decimals, so the `N17/10000`
 term in the `G58` build-up is correctly negligible (~0.9 bp).
 
-## 5. The two stale tabs still bite, exactly as on Windows
+## 5. The stale tabs still bite, exactly as on Windows — and there are FOUR, not two
 
 `Agency Region` ships with a **Dallas-Fort Worth** extract and `YardiProjections` with
 a **Little Rock** forecast. Left alone on the Shady Oaks build they produced
@@ -184,6 +186,51 @@ and the PDF would have printed Dallas properties under Houston search criteria.
 Houston n=22 → **6.0932%**, against Werner Creek's independent 8/6 Houston refresh of
 **6.093%** and the CMA's own TX/1961-81 average of 6.0965%. Three sources, same
 number — that is the check worth running.
+
+### 5a. The sale-comp grid and its map are ALSO stale (Shady Oaks, 8/7/2026)
+
+Two more, found only by rendering the PDF and reading page 4:
+
+1. **`Auto Sales` — the sale comparables.** `PDF Output - F&C` rows 118-147 mirror
+   `Comparable Grid`!C7:I35, whose N3:Z52 INDEX into the table
+   **`Output_Analysis_Data__2`** on the `Auto Sales` sheet (A1:Y286) whenever
+   `Comparable Grid`!M1 = "Automatic" — how it ships. That table arrives **preloaded
+   with a previous deal's CMA export** (285 Dallas/Irving rows tagged `7.xlsx`). Shady
+   Oaks printed five Irving comps and *"Subject Indicated Total Value $2,030,830"*
+   against a real income value of $1,020,000.
+2. **The map picture.** `xl/media/image5.png`, anchored col 8 / row 120 (the I121
+   panel) on drawing5. It is a **static image with no formula behind it**, so fixing
+   the grid does not touch it — the page then shows correct Houston comps beside a
+   Dallas map. Regenerate per `comp-map-generation.md` and swap it with
+   `swap_workbook_image.py` (zip-level; keeps the anchor, so it lands in the same frame
+   at the same size — the COM `AddPicture` recipe in that note has no Linux equivalent).
+
+Fix the data with `refresh_sale_comps.py --cma "<this deal's Automatic CMA Analysis.xlsx>"`.
+Selection is `Comparable Grid`!L3:L52 ("Include (x)"); **grid row r reads sheet row r-1**,
+and only the first five marks print.
+
+**The offset that will bite you:** the model's table has an extra empty column
+`Column1` at L that the CMA export lacks. CMA A..K → model A..K, CMA L..X → model
+**M..Y**. Copy column-for-column and Avg Unit SF lands in the Column1 slot and shears
+everything after it — no error, just quietly wrong comps. The script asserts the headers
+line up before writing.
+
+> **Why none of this is caught by the gates.** There is no error cell, no `#REF!`, no
+> blank. s.7's print-area error gate returns **0 errors**, `finalize.py` reports **ALL
+> GREEN**, every return metric is right — and the page is still about the wrong city.
+> Sale comps do not feed the income model, so nothing downstream moves. **Render the PDF
+> and read all eight pages every time.** The gate proves the model computes; only your
+> eyes prove it is about this deal.
+
+### 5b. `Agency Loan-Sale Comps`!C16:H17 keeps two Irving rows — harmless, leave them
+
+After `refresh_market_tabs.py`, two stale records (Towne Oaks Townhomes, Grove at
+Irving) survive at C16:H17 under a header at C15. **Page 5 does not read them** — the
+printed block sources `Agency Loan-Sale Comps`!R15:AD… (columns R onward), which the
+refresh populates correctly; verified 22 Houston rows on the rendered page. Likewise
+`Cap Rates` and `Recent Sales Experience` legitimately contain Irving properties (a
+national reference list and TMG's own track record). Don't chase these to zero — check
+what the print area actually references before deleting anything.
 
 ## 6. Reconciling Phase-A Python against the recalculated model
 
@@ -244,6 +291,54 @@ while the IRR-binding price rises above it.
 Practical shortcut: the DSCR-binding price from the Python `max_green_price` /
 `solve_price_for_metric("t3_dscr", 1.25)` run is **directly reusable in the workbook**.
 Start the workbook binary search just under it rather than sweeping blind.
+
+### 6b. Third confirmation, and skip the binary search entirely (Aldine, 8/7/2026)
+
+Aldine Apartments (96 units, Houston 77039) reproduced §6a exactly — the third deal in
+two days, so treat this as the normal case, not an anomaly:
+
+| | Python | Workbook | |
+|---|---|---|---|
+| Loan / value-add capital | $4,217,400 / $374,400 | same | identical |
+| T-3 DSCR (`'UW - F&C'!AC42`) | 1.2594243853574 | 1.25942438535739 | **13 dp** |
+| Yield on Cost (`'PDF Output - F&C'!E35`) | 0.0739253524782 | 0.0739253524782196 | identical |
+| Project IRR | 20.08% | **24.10%** | +4.0 pts |
+| Avg cash-on-cash | 12.26% | **13.85%** | +1.6 pts |
+
+All three §6a diagnostic reads tied, so the divergence was again confined to years 2–5
+and the reversion. The Python-solved strike of $6,390,000 (IRR-binding at exactly 20%)
+left **4.1 points of IRR** on the table in the deliverable.
+
+**Because DSCR ties to 13 decimals, you do not need a workbook binary search at all.**
+Solve the DSCR floor in Python and the answer transfers directly:
+
+```python
+lo, hi = python_strike, python_strike + 250_000
+while hi - lo > 1000:                      # bisect on the DSCR floor alone
+    mid = (lo + hi) // 2
+    if run(mid)["t3_dscr"] >= 1.25: lo = mid
+    else: hi = mid
+```
+
+Aldine: crossing at **$6,426,093**, so **$6,425,000** on $5k steps ($6,430,000 goes red
+at 1.24908). One confirming workbook recalc at that price is all you need — down from a
+~10-step search at ~20 s each.
+
+**Watch the sign trap when you write this up.** DSCR *falls* as price rises, because the
+loan is LTV-sized (66% of price) so debt service scales with price while in-place NOI does
+not. That is why the constraint flips: the IRR floor moves *up* on the workbook's more
+generous engine, past the DSCR floor, which does not move at all.
+
+It also gives the writeup a better argument than "the IRR target caps the price." The
+honest framing is **"LTV sizes the loan, and that is exactly why DSCR caps the price"** —
+one causal chain instead of two competing claims, resting on the single metric both engines
+agree on to 13 decimals and on a hard lender minimum rather than on a modelled return.
+Prefer the DSCR-bound number in client-facing prose for that reason.
+
+**Quote the WORKBOOK's metrics in every client-facing document**, not Python's. At the
+re-solved Aldine strike, Python reports an IRR *below* the 20% target while the workbook
+reports comfortably above it. The workbook is what the buyer receives; a writeup quoting
+the Python figures would contradict the model attached to the same email.
 
 ## 7. Error-diff gate
 
