@@ -4,104 +4,110 @@ description: >
   Look up current estimated multifamily debt terms by lender/program — Fannie
   Mae, Freddie Mac (conventional and SBL/Small Balance), HUD/FHA 223(f) and
   221(d)(4), LifeCo, CMBS, bank, credit union, bridge (debt fund or bank), and
-  mezz/pref equity — from The Multifamily Group's Estimated Loan Terms
-  workbook, with the rate built as current index (UST or SOFR) + spread. Use
-  this skill whenever the user asks about current loan terms, debt pricing,
-  interest rates, proceeds/LTV, DSCR, interest-only, term, or amortization for
-  a multifamily loan — e.g. "what's the current loan terms on bridge debt?",
-  "where is agency pricing today?", "what would Freddie SBL quote?", "current
-  LifeCo rates", "loan assumptions for new debt" — even if they don't mention
-  the workbook. Also use it to refresh the workbook's index-rate overrides or
-  when adding/editing lender programs in the workbook.
+  mezz/pref equity — with the rate built as current index (UST or SOFR) +
+  spread. Use this skill whenever the user asks about current loan terms, debt
+  pricing, interest rates, proceeds/LTV, DSCR, interest-only, term, or
+  amortization for a multifamily loan — e.g. "what's the current loan terms on
+  bridge debt?", "where is agency pricing today?", "what would Freddie SBL
+  quote?", "current LifeCo rates", "loan assumptions for new debt" — even if
+  they don't mention the workbook. Also use it to regenerate the Estimated
+  Loan Terms Excel workbook / Loan Terms PDF, or when lender spreads or
+  programs need updating.
 ---
 
 # Loan Terms Lookup
 
-Answers "what are current terms on X debt?" for multifamily financing by
-running the **Estimated Loan Terms workbook** bundled at
-`assets/Estimated Loan Terms - Multifamily Debt.xlsx`.
-
-The workbook is the source of truth. Its `Loan Terms` tab holds one row per
-loan program with the broker-maintained assumptions: index, spread (bps), max
-LTV, min DSCR, IO years, term, amortization, rate type, recourse, notes. The
-rate is always **index yield + spread** — never a hardcoded number — so the
-answer is only as fresh as the index yields you feed it.
-
-If the user supplies a newer copy of the workbook (attached to the chat or in
-a connected folder), use that copy instead of the bundled one — the broker
-edits spreads there as the market moves.
-
-## Workflow
-
-### 1. Get fresh index yields (best effort, ~30 seconds)
-
-Try the web first; the goal is today's 5/7/10/30-Yr UST and 30-Day Avg SOFR.
-
-- **Treasuries**: WebFetch
-  `https://home.treasury.gov/resource-center/data-chart-center/interest-rates/TextView?type=daily_treasury_yield_curve&field_tdr_date_value_month=YYYYMM`
-  (substitute current year+month) and take the most recent row's 5, 7, 10,
-  and 30 Yr par yields.
-- **SOFR**: WebFetch `https://www.bluegamma.io/compounded-rates/sofr` (or the
-  NY Fed reference-rates page) for the latest 30-day compounded average SOFR.
-- Direct FRED CSV pulls (`fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10`)
-  are often blocked in the sandbox — don't burn time retrying them; the
-  treasury.gov page above is the reliable path.
-
-If the web is unavailable, skip `--yields` entirely: the script falls back to
-the workbook's cached/override rates and reports their as-of date, which you
-must then state in your answer.
-
-### 2. Run the query script
+Answers "what are current terms on X debt?" and produces the **Estimated Loan
+Terms** deliverables (Excel workbook + one-page PDF) by running one
+self-contained Python script:
 
 ```bash
-python scripts/query_terms.py \
-  --workbook "assets/Estimated Loan Terms - Multifamily Debt.xlsx" \
-  --program "bridge" \
-  --yields '{"UST 5 Yr": 4.33, "UST 7 Yr": 4.47, "UST 10 Yr": 4.63, "UST 30 Yr": 5.17, "30-Day Avg SOFR": 3.62}' \
-  --as-of "08/05/2026"
+python scripts/loan_terms.py --outdir <job folder> [--program "bridge"]
 ```
 
-- `--program` is a case-insensitive substring match ("bridge" matches both
-  Bridge — Debt Fund and Bridge — Bank; omit it to list every program).
-  "agency" won't match anything — use "fannie"/"freddie", or run all and
-  present the agency rows.
-- Yields are in **percent** (4.63 = 4.63%), keyed exactly as on the
-  workbook's `Treasury Yields` tab.
-- Add `--set-overrides` when you fetched fresh yields — it writes them into
-  the workbook's yellow Manual Override cells so the file stays current for
-  Excel use. Add `--json` for structured output.
+Everything is pure Python (`requests` + `openpyxl` + `reportlab`). **Do not
+use LibreOffice, `soffice`, or Excel WEBSERVICE anywhere in this workflow** —
+the script runs headless on a Linux server, computes all values itself, and
+the workbook's formulas recalculate on their own when someone opens the file
+in Excel.
 
-### 3. Answer the user
+## What one run does
 
-Keep it tight — a broker wants the quote card, not a lecture. Lead with the
-rate build-up, then the structure, then caveats:
+1. **Fetches index rates** (UST 5/7/10/30-Yr, 30-Day Avg SOFR) by walking a
+   source tree until every index is filled. The server sits on a German IP,
+   so EU-reachable mirrors back up the US sources:
+
+   | Priority | UST curve | 30-Day SOFR |
+   |---|---|---|
+   | 1 | treasury.gov XML feed (official) | NY Fed markets API (official) |
+   | 2 | FRED `fredgraph.csv` | FRED `SOFR30DAYAVG` |
+   | 3 | Stooq (EU) CSV — no 7-Yr | — |
+   | 4 | Yahoo Finance chart API | — |
+   | 5 | finanzen.net (DE) scrape, last resort | — |
+   | 6 | config fallback (last good fetch) | config fallback |
+
+   A missing 7-Yr is interpolated from the 5/10-Yr. Every value passes a
+   sanity check (0.05–15%, with a 10x fix for CBOE-style quotes), and each
+   fetched rate is logged with its source. Successful fetches are written
+   back into the config as the new fallbacks, so even a fully offline run
+   uses the last known-good curve. (Dukascopy is deliberately not in the
+   tree: its free feeds are bond *futures prices*, not yields.)
+
+2. **Builds the Excel workbook from scratch** (`Estimated Loan Terms -
+   Multifamily Debt.xlsx`): `Loan Assumptions` (dropdown → LTV, Interest
+   Rate, DSCR Requirement, IO Years, Loan Term, Amortization via
+   INDEX/MATCH), `Loan Terms` (full lookup matrix, rate = index + spread as
+   live formulas), `Treasury Yields` (the fetched values with source +
+   as-of). Named ranges `LenderList` / `LoanTermsTable` are available for
+   other models.
+
+3. **Renders `Loan Terms.pdf`** — a one-page landscape terms sheet of the
+   whole matrix in TMG navy/gold, with the rate build-up, as-of line, and
+   disclaimer. This is the attachment for emails; the xlsx is for models.
+
+## Answering a terms question
+
+Run with `--program "<query>"` (case-insensitive; all words must appear in
+the program name or notes — "bridge", "freddie sbl", "credit union"). Add
+`--no-files` when the user only wants an answer, `--json` for structured
+output. Then reply with a tight quote card — a broker wants the numbers, not
+a lecture:
 
 > **Bridge — Debt Fund** (est., indicative)
-> Rate: **~6.62% floating** = 30-Day SOFR 3.62% + 300 bps (yields as of 8/5/26)
-> Leverage: up to 70% LTV (70–80% LTC) · DSCR ref: 1.00x going-in
-> Structure: 36-mo term, full-term IO, 1+1 extensions, non-recourse w/ carve-outs, rate cap required
-> *Spreads are placeholder estimates from the terms workbook — confirm with lenders before quoting.*
+> Rate: **~6.62% floating** = 30-Day SOFR 3.62% + 300 bps (NY Fed, 8/5/26)
+> Leverage: up to 70% LTV · DSCR ref: 1.00x going-in
+> Structure: 36-mo term, full-term IO, non-recourse w/ carve-outs, rate cap required
+> *Spreads are broker estimates — confirm with lenders before quoting.*
 
-Always state the as-of date of the yields and that spreads/terms are
-broker-maintained estimates, not lender quotes. If the user asks for several
-programs or "all options," present a compact comparison table.
+Always state the as-of date and source of the index, and that spreads/terms
+are estimates, not lender quotes. If every index logged as "config fallback",
+say so — the answer is only as fresh as the last successful fetch. For "all
+options" questions, attach the PDF instead of pasting thirteen cards.
 
-## Maintaining the workbook
+## Maintaining assumptions
 
-- **Spreads or structure changed?** Edit the blue cells on the `Loan Terms`
-  tab (col D spread, cols F–L terms) — the script and Excel both read them.
-- **New lender program?** Insert a row inside the table on `Loan Terms`, copy
-  the Index Rate (col C) and Interest Rate (col E) formulas down, and extend
-  the `LenderList` named range. The script picks up new rows automatically.
-- The workbook also self-updates in Excel for Windows via `=WEBSERVICE()`
-  pulls from FRED with manual-override fallback — that path is independent of
-  this skill and needs no maintenance here.
+`scripts/loan_terms_config.json` is the source of truth:
+
+- **Spreads or terms moved?** Edit the program's entry (spread_bps, max_ltv,
+  min_dscr, io_years, term_months, amort_months, notes) and re-run.
+- **New lender program?** Add an object to `programs`; the workbook, PDF, and
+  lookups pick it up automatically. `amort_months: 0` means full-term IO.
+  Programs priced without an index use `"index": "Fixed (no index)"` with the
+  whole coupon in `spread_bps`.
+- The `indices` block is auto-maintained by the script (`--no-save` to
+  disable); only touch its fallbacks when seeding a fresh install.
+
+## Flags
+
+`--offline` (no web), `--no-files` (query only), `--no-save` (don't update
+config fallbacks), `--outdir`, `--basename`, `--config`, `--json`.
 
 ## Caveats
 
-- Everything is indicative screening data — never present output as a rate
-  lock, quote, or commitment.
-- FRED and treasury.gov post yields with up to a 1-business-day lag; SOFR
-  averages lag similarly. Say "as of <date>" rather than "right now".
-- Mezz/pref row uses a fixed placeholder coupon (no index) — flag that if it
-  comes up.
+- Output is indicative screening data — never present it as a rate lock,
+  quote, or commitment. HUD rates exclude MIP (~0.60%/0.25% green).
+- Official sources post with up to a 1-business-day lag; say "as of <date>".
+- The finanzen.net scraper is layout-sensitive by design; when it breaks it
+  logs and falls through rather than returning a bad number. Don't "fix" a
+  failed fetch by hand-typing rates into the script — put them in the config
+  fallbacks with an as-of date instead.

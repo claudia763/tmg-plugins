@@ -1,0 +1,39 @@
+{
+  "_comment": "Source of truth for the loan-terms-lookup skill. Edit 'programs' when lender spreads/terms move. 'fallback_pct' values are auto-updated with the latest successful fetch (see --no-save).",
+  "indices": {
+    "UST 5 Yr":        {"fallback_pct": 4.33, "as_of": "2026-08-05"},
+    "UST 7 Yr":        {"fallback_pct": 4.47, "as_of": "2026-08-05"},
+    "UST 10 Yr":       {"fallback_pct": 4.63, "as_of": "2026-08-05"},
+    "UST 30 Yr":       {"fallback_pct": 5.17, "as_of": "2026-08-05"},
+    "30-Day Avg SOFR": {"fallback_pct": 3.62, "as_of": "2026-08-04"},
+    "Fixed (no index)": {"fallback_pct": 0.0, "as_of": null}
+  },
+  "programs": [
+    {"program": "Fannie Mae — Conventional", "index": "UST 10 Yr", "spread_bps": 155, "max_ltv": 0.75, "min_dscr": 1.25, "io_years": 3, "term_months": 120, "amort_months": 360, "rate_type": "Fixed", "recourse": "Non-Recourse",
+     "notes": "DUS program; 80% max LTV in some markets; tiered pricing (Tier 2 shown). Green/affordable discounts available."},
+    {"program": "Freddie Mac — Conventional", "index": "UST 10 Yr", "spread_bps": 150, "max_ltv": 0.75, "min_dscr": 1.25, "io_years": 3, "term_months": 120, "amort_months": 360, "rate_type": "Fixed", "recourse": "Non-Recourse",
+     "notes": "Optigo conventional; index-lock & early rate-lock available; pricing varies by market/leverage tier."},
+    {"program": "Fannie Mae — Small Balance", "index": "UST 10 Yr", "spread_bps": 205, "max_ltv": 0.80, "min_dscr": 1.25, "io_years": 1, "term_months": 120, "amort_months": 360, "rate_type": "Fixed", "recourse": "Non-Recourse",
+     "notes": "Small Loan program (typically ≤$9MM); streamlined docs; step-down prepay available."},
+    {"program": "Freddie Mac — SBL", "index": "UST 10 Yr", "spread_bps": 200, "max_ltv": 0.80, "min_dscr": 1.25, "io_years": 1, "term_months": 120, "amort_months": 360, "rate_type": "Fixed", "recourse": "Non-Recourse",
+     "notes": "SBL $1–$7.5MM; hybrid ARM options; LTV/DSCR vary by market tier (Top/Standard/Small/Very Small)."},
+    {"program": "HUD/FHA — 223(f)", "index": "UST 10 Yr", "spread_bps": 110, "max_ltv": 0.85, "min_dscr": 1.176, "io_years": 0, "term_months": 420, "amort_months": 420, "rate_type": "Fixed", "recourse": "Non-Recourse",
+     "notes": "35-yr fully amortizing; add ~0.60% annual MIP (0.25% green) on top of note rate; 3–5 mo processing."},
+    {"program": "HUD/FHA — 221(d)(4)", "index": "UST 10 Yr", "spread_bps": 140, "max_ltv": 0.85, "min_dscr": 1.176, "io_years": 0, "term_months": 480, "amort_months": 480, "rate_type": "Fixed", "recourse": "Non-Recourse",
+     "notes": "New construction/sub rehab; 40-yr am after ~3-yr IO construction period; add ~0.65% MIP; long processing."},
+    {"program": "Life Company (LifeCo)", "index": "UST 10 Yr", "spread_bps": 135, "max_ltv": 0.65, "min_dscr": 1.35, "io_years": 2, "term_months": 120, "amort_months": 360, "rate_type": "Fixed", "recourse": "Non-Recourse",
+     "notes": "Best pricing at ≤65% LTV on stabilized Class A/B; forward commitments available; yield maintenance."},
+    {"program": "CMBS / Conduit", "index": "UST 10 Yr", "spread_bps": 250, "max_ltv": 0.75, "min_dscr": 1.25, "io_years": 5, "term_months": 120, "amort_months": 360, "rate_type": "Fixed", "recourse": "Non-Recourse",
+     "notes": "Full-term IO common at ≤65% LTV; defeasance prepay; cash management triggers."},
+    {"program": "Bank — Balance Sheet", "index": "UST 5 Yr", "spread_bps": 225, "max_ltv": 0.70, "min_dscr": 1.25, "io_years": 1, "term_months": 60, "amort_months": 300, "rate_type": "Fixed", "recourse": "Recourse",
+     "notes": "5-yr fixed / 25-yr am typical; recourse often burns off at DSCR test; deposits may improve pricing."},
+    {"program": "Credit Union", "index": "UST 5 Yr", "spread_bps": 235, "max_ltv": 0.75, "min_dscr": 1.25, "io_years": 0, "term_months": 60, "amort_months": 360, "rate_type": "Fixed", "recourse": "Recourse (varies)",
+     "notes": "Often no prepayment penalty; membership required; slower execution on larger deals."},
+    {"program": "Bridge — Debt Fund", "index": "30-Day Avg SOFR", "spread_bps": 300, "max_ltv": 0.70, "min_dscr": 1.00, "io_years": 3, "term_months": 36, "amort_months": 0, "rate_type": "Floating", "recourse": "Non-Recourse (carve-outs)",
+     "notes": "Typically SOFR + 275–400 floating, full-term IO; 70–80% LTC; 1+1 extensions; rate cap required."},
+    {"program": "Bridge — Bank", "index": "30-Day Avg SOFR", "spread_bps": 250, "max_ltv": 0.65, "min_dscr": 1.05, "io_years": 2, "term_months": 24, "amort_months": 0, "rate_type": "Floating", "recourse": "Recourse (partial)",
+     "notes": "Cheaper than debt-fund bridge but lower leverage and partial recourse; renovation/lease-up deals."},
+    {"program": "Mezzanine / Pref Equity", "index": "Fixed (no index)", "spread_bps": 1250, "max_ltv": 0.85, "min_dscr": 1.05, "io_years": 10, "term_months": 120, "amort_months": 0, "rate_type": "Fixed", "recourse": "Non-Recourse",
+     "notes": "Placeholder 12.5% current pay+accrual; sized to ~85% combined LTV / 1.05x combined DSCR behind senior."}
+  ]
+}
