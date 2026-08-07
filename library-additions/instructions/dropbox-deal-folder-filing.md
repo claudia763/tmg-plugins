@@ -47,5 +47,19 @@ Anything valuable that fits no category goes at the `dropbox/` root.
   unprocessed owner T-12 PDF belongs in `- Info for Buyers/` — and keep the
   original filename if it is already clean and descriptive, so a later
   processed version (usually `.xlsx`) sits beside it rather than colliding.
+- **A document about a DIFFERENT property goes at the `dropbox/` root, never
+  in a category folder.** The staging folder mirrors into one deal's folder,
+  and `- Info for Buyers/` is buyer-facing: a second property's operating
+  statement sitting in there reads as though it belongs to the deal, which is
+  worse than misfiling — it is misleading to a buyer. Tell-tales that a file
+  is reference material rather than deal material: a property name that does
+  not match the thread, a period years staler than the deal's own documents,
+  and wording like "file this for reference." Keep the original filename when
+  it already names the property and period, so the root copy is
+  self-identifying, and say plainly in the reply why it went to the root.
+- **Do not copy a real property's financials into `library-additions/`.** That
+  folder auto-commits to the tmg-plugins GitHub repo. Even when an inbound
+  workbook is a perfect exemplar of a house format, file the workbook in
+  Dropbox and contribute only a written format note — never the live data.
 - `dropbox/` is separate from `outbox/`: only `outbox/` gets emailed, only
   `dropbox/` gets mirrored. A file usually belongs in both.
