@@ -1,5 +1,18 @@
 # Headless Dropbox client on a no-root Linux host
 
+> **SUPERSEDED 2026-08-07 — HISTORICAL ONLY. DO NOT FOLLOW THIS PROCEDURE.**
+> The server no longer uses the native Dropbox client. TMG Dropbox is reached
+> through an **rclone FUSE mount** at `/home/claudia/mnt/TMG Dropbox`
+> (`rclone-dropbox.service`), and `DROPBOX_DIR` is set to a folder inside it.
+> Read **`rclone-dropbox-mount.md`** instead.
+>
+> Following the steps below today is actively harmful: `dropbox.service` is
+> disabled on purpose and crash-loops with `[ALERT: Dropbox Folder Missing]`
+> if started, and the "not yet linked / email the link URL" conclusion in §3
+> is **wrong** — Dropbox already works via rclone. Do not email anyone a
+> `cli_link_nonce` link. Kept only as a record of how the native client was
+> installed and why it was abandoned.
+
 How to get the Dropbox **client itself** installed, running persistently and linked on the agent server — the infrastructure layer, with **no sudo**. Read this if `DROPBOX_DIR` is empty, if `~/Dropbox` does not exist, or if a job needs files to actually reach the company Dropbox. For *which* files go in *which* category folder once syncing works, see `dropbox-deal-folder-filing.md` — that is the job-level filing convention and assumes this setup is already done.
 
 First established 2026-08-06 on `ubuntu-8gb-nbg1-2` (Ubuntu 26.04 LTS "Resolute Raccoon", Python 3.14.4, Node v22.23.2), as unprivileged user `claudia` (uid 1000). `sudo -n true` on this host answers `sudo: I'm sorry claudia. I'm afraid I can't do that` — assume no root, ever.
