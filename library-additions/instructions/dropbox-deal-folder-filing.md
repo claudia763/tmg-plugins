@@ -37,5 +37,15 @@ Anything valuable that fits no category goes at the `dropbox/` root.
   ours rather than overwriting ours.
 - Raw email attachments are archived by the server automatically; the agent's
   job is only the categorized filing, so do not bulk-copy `inbox/`.
+- **"Just save it, don't process it" requests are filing-only jobs.** Honor
+  them literally: identify the document enough to pick the right category
+  (open it, read the header), copy it in under a clean name, and stop. Do not
+  build a workbook, run a parser, or produce an analysis nobody asked for.
+  Verify the staged copy matches the source (`md5sum` both) and say so in the
+  reply, since the file itself is the deliverable. Source documents sent this
+  way still go in the category folder that matches what they are — an
+  unprocessed owner T-12 PDF belongs in `- Info for Buyers/` — and keep the
+  original filename if it is already clean and descriptive, so a later
+  processed version (usually `.xlsx`) sits beside it rather than colliding.
 - `dropbox/` is separate from `outbox/`: only `outbox/` gets emailed, only
   `dropbox/` gets mirrored. A file usually belongs in both.
