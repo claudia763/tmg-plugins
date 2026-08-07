@@ -3,9 +3,19 @@
 Covers: what goes where when a job asks you to maintain a `dropbox/` staging
 folder alongside `outbox/`. Read at the start of any job whose instructions
 mention Dropbox filing. The server mirrors `dropbox/` into the company deal
-folder for that email thread after the job. For the infrastructure side —
-installing, running and linking the Dropbox client on the server so that mirror
-actually works — see `dropbox-headless-linux-setup.md`.
+folder for that email thread after the job. For the infrastructure side — how
+the server actually reaches TMG Dropbox so that mirror works — see
+`rclone-dropbox-mount.md`. (`dropbox-headless-linux-setup.md` is SUPERSEDED as
+of 2026-08-07 and must not be followed.)
+
+**The mirror is not automatic until the mail server is restarted.** `.env` is
+read once at start, so if `DROPBOX_DIR` was set during a job, that job and any
+others already running still have mirroring off — their staged `dropbox/` tree
+goes nowhere. Check `grep '^DROPBOX_DIR=' .env` against the server's start time
+(`ps -eo pid,lstart,cmd | grep 'node server.js'`); if `.env` is newer, file this
+job's files into Dropbox by hand using the path convention in
+`rclone-dropbox-mount.md` §4, and say so in the reply rather than assuming the
+mirror covered it.
 
 ## The five categories (create only the ones you use)
 
