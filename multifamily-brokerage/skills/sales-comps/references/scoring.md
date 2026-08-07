@@ -1,13 +1,14 @@
 # Comp scoring & selection spec
 
-This reproduces the CMA workbook's original Power Query logic (`Output Analysis
-Data` query) and extends it per TMG's instructions. Change behavior in the
-`CONFIG` dict at the top of `scripts/select_comps.py`.
+This reproduces the scoring logic TMG originally ran in Excel Power Query
+(the CMA workbook's `Output Analysis Data` query), as since retuned by TMG,
+now fully in Python. Change behavior in the `CONFIG` dict at the top of
+`scripts/select_comps.py`.
 
 ## 1. Distance
 
 Subject coordinates come from an online geocode (Step 2 of the workflow); every
-comp row in `All Sale Comps` already carries Latitude/Longitude. Distance uses
+comp row in the All Sales Comps workbook already carries Latitude/Longitude. Distance uses
 the spherical law of cosines with R = 3959 mi — the same math as the original
 query, so results match what the workbook produced when its Bing geocoder still
 worked:
@@ -65,9 +66,9 @@ band). The JSON records exactly who was trimmed and why so the user can be told.
 
 ## 4. Cap-rate drift (Combined Fannie & Freddie data)
 
-Source: the CMA's `AgencyDrift` tab (a filtered extract of TMG's "Combined
-Fannie and Freddie Sales Comps" database), or a standalone copy of that
-database via `--fannie-freddie`.
+Source: the Combined Fannie and Freddie Sales Comps workbook
+(`--fannie-freddie`) — agency loan originations, mostly refinance comps; used
+exclusively for drift, never as sale comps.
 
 Per TMG's instruction, filter on **State and Vintage** (subject state; year
 built ± `drift_vintage_window`, default 10). Average the `Cap Rate` of loans
@@ -81,8 +82,8 @@ order: state+vintage → state only → national+vintage → national. The
 `cap_rate.scope` field in selection.json records which level was used — mention
 it to the user when it isn't state+vintage.
 
-In the output grid, row 25 holds the drift in bps and row 26 converts it to a
-price adjustment against the current average cap rate (cell `AI1`):
+In the Comp Grid (Excel sheet and PDF), the drift row holds bps and the
+adjacent adjustment row converts it against the current average cap rate:
 `adj = −(drift/10000) / current_cap` — i.e. a comp that sold when cap rates
 were 40 bps lower than today gets marked down by 40bps/current-cap ≈ 7% of
 its $/unit.
