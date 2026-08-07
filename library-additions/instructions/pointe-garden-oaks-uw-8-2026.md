@@ -48,19 +48,34 @@ marketing, no administration beyond $299/mo of internet, no turnover/make-ready 
 reserves. Payroll is $2,500/mo of 1099 labour ($441/unit) and the only R&M line is a
 flat $1,345/mo budget accrual on a 63-year-old building. Tax and insurance are level
 12/12 accruals — budget figures, not bills. Year-1 normalization lands at
-**$7,693/unit** including reserves. That $1,608/unit gap, capitalized, is most of the
+**$7,718/unit** including reserves. That $1,633/unit gap, capitalized, is most of the
 discount to the comp grid.
 
 ## Final model
 
 - Deliverables: `CK - Pointe at Garden Oaks - 8-7-2026.xlsx` + single-sheet PDF of
   `PDF Output - F&C`, and `Pointe at Garden Oaks - Valuation Summary - 8-7-2026.docx`.
-- **Strike $4,050,000** ($59,559/unit, $101/SF) at **75% LTV** → loan $3,037,500,
-  equity $1,341,625. Freddie Mac — SBL 6.63%, 1 yr IO, 120 mo, 360 am.
-- IRR **20.06%** / CoC **13.36%** / T-3 DSCR **1.2836** — all green.
-  **Binding constraint: the IRR floor.**
-- Year-1 NOI **$358,483** (8.85% going-in); T-12 NOI $426,691 (10.54% on the owner's
-  un-normalized books). Terminal cap **8.25%**. Supported band $3.76M–$4.35M.
+- **Strike $4,130,000** ($60,735/unit, $103/SF) at **75% LTV** → loan $3,097,500,
+  equity $1,363,425. Freddie Mac — SBL 6.63%, 1 yr IO, 120 mo, 360 am. Monthly P&I
+  $19,844 after a Year-1 interest-only period at $17,114.
+- IRR **20.07%** / CoC **13.25%** / T-3 DSCR **1.2516** — all green.
+  **The IRR floor and the DSCR floor bind together** at essentially the same price
+  (both cross at about $4,134,000), so the deal is exactly balanced between equity
+  return and debt coverage. At $4,150,000 both fail simultaneously.
+- Year-1 NOI **$356,783** (8.64% going-in); T-12 NOI $426,691 (10.33% on the owner's
+  un-normalized books). Terminal cap **8.25%**. Reversion $5,206,606.
+- Supported band solved in the workbook: **$3,835,000 (25% IRR) – $4,434,000 (15% IRR)**.
+- **The strike was solved in the WORKBOOK, not in Python.** Python's engine settled
+  $4,050,000; the recalculated workbook is more generous on the reversion (equity
+  multiple 2.31x vs 2.20x on identical inputs) and supports $80,000 more at the same
+  gates. See §6a of the Linux build note for the diagnosis procedure — all transcribed
+  inputs tie exactly, so this is an engine difference and not a transcription error.
+- **Watch the PDF's "Sales Range" row.** `Assumptions!F50/H50` are FORMULAS
+  (`=ROUND('(--)'!E12,-5)` / `=ROUND('(++)'!E12,-5)`) that print an **unlevered DCF**
+  band discounted at 25% — here $4,200,000–$4,700,000, i.e. ABOVE the levered strike.
+  That is not a bug and must not be "fixed": it says the asset's unlevered cash flows
+  support more than a 75%-levered buyer can pay, which is the debt-capacity story.
+  Explain it rather than overwriting the formulas.
 - **Target IRR is 20%, not 25%** — `G48 = IF($G$63="Non-Recourse",$K$48,$M$48)` and
   agency debt is non-recourse. Set `M62` before reading G48 or you will tune to the
   wrong target.
@@ -79,11 +94,21 @@ over, then **falls**:
 | Binding | IRR | IRR | IRR | **IRR** | IRR | DSCR | DSCR |
 | T-3 DSCR | 1.964 | 1.570 | 1.416 | **1.284** | 1.259 | 1.250 | 1.251 |
 
-The mathematical peak was **76% / $4,070,000**, where the two floors cross. We took
-**75% / $4,050,000** — 0.5% less money for a standard agency leverage point and 2.4
-bps more DSCR coverage, which is cheap insurance on an SFHA asset whose expense record
-a lender will re-underwrite. **Sweep LTV in 1% steps around the crossover; the naive
-45–80% sweep in 5% steps misses the peak entirely.**
+(The table above is the PYTHON engine's sweep, which is what leverage selection was
+based on. The final price came from the workbook — see "Final model" above.) The
+Python peak was **76% / $4,070,000**, where the two floors cross; **75%** was chosen
+as a standard agency leverage point 0.5% below it with more DSCR coverage, which is
+cheap insurance on an SFHA asset whose expense record a lender will re-underwrite.
+
+**Sweep LTV in 1% steps around the crossover; the naive 45–80% sweep in 5% steps
+misses the peak entirely.** Then re-solve price in the workbook at the chosen LTV —
+on this deal that added $80,000. The workbook's own sweep at 75% LTV:
+
+| Price | $4,100,000 | **$4,130,000** | $4,150,000 |
+|---|---|---|---|
+| IRR | 20.57% | **20.07%** | 19.74% FAIL |
+| CoC | 13.51% | **13.25%** | 13.09% |
+| T-3 DSCR | 1.2635 | **1.2516** | 1.2438 FAIL |
 
 ### Factors — terminal cap build-up
 6.0775% sale-comp cap (TX, 1963 ±10 yrs, T-12, n=24 — within 3 bps of Colliers/MSCI-RCA's
