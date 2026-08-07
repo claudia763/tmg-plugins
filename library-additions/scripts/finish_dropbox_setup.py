@@ -204,6 +204,25 @@ def set_env(server_dir, target, apply_changes):
     say("PASS", "DROPBOX_DIR written", f"{desired}  (backup: {backup.name})")
 
 
+def rclone_mount_present():
+    """True if TMG Dropbox is served by an rclone FUSE mount.
+
+    Added 2026-08-07. The server migrated off the native Dropbox client, which
+    makes every check in this script wrong (and its 'email the link URL'
+    advice dangerous). Detect the newer setup and refuse rather than mislead.
+    """
+    try:
+        with open("/proc/mounts", encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                parts = line.split()
+                if len(parts) >= 3 and parts[2].startswith("fuse.rclone"):
+                    if "Dropbox" in parts[1].replace("\\040", " "):
+                        return True
+    except OSError:
+        pass
+    return False
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -216,6 +235,20 @@ def main():
 
     mode = "APPLY" if args.apply else "DRY RUN (pass --apply to make changes)"
     print(f"Finish Dropbox setup -- host={os.uname().nodename}  mode={mode}\n")
+
+    if rclone_mount_present():
+        print("-" * 62)
+        print("SUPERSEDED: this host reaches TMG Dropbox through an rclone FUSE")
+        print("mount, not the native Dropbox client, so every check below would")
+        print("be measuring the wrong thing. Refusing to run.")
+        print("")
+        print("In particular this script would report 'Dropbox is not linked'")
+        print("and print a cli_link_nonce URL. Both are FALSE here -- Dropbox is")
+        print("reachable -- and the nonce is minted as a side effect of the check")
+        print("itself. Do NOT email that link to anyone.")
+        print("")
+        print("Read instructions/rclone-dropbox-mount.md instead.")
+        return 1
 
     print("Service:")
     check_service()
