@@ -27,12 +27,14 @@ Two inputs, two outputs — everything computed in Python, no Excel links:
    number goes to a client), and if more than 20 rows survive the list is
    trimmed to the top 15. Plus a 'Comp Grid' sheet (the Subject-vs-Comp-1..5
    adjustment grid with live in-sheet formulas).
-1b. **`<Deal> - Underwriting Sale Data.xlsx`** — internal. Every scored comp
-   in rank order, exact legacy 'Output Analysis Data' schema (Property Name …
-   Latitude, Longitude, Lat1_Rad, Lon1_Rad, Distance (mi.), DistancePoints,
-   AgeSpread, AgePoints, DaysSinceSale, DatePoints, TotalPoints), with
-   Lat1_Rad/Lon1_Rad as live `=Lat/180*PI()` formulas — feeds the
-   underwriting model.
+1b. **`<Deal> - Underwriting Sale Data.xlsx`** — internal, feeds the
+   underwriting model. The SAME curated pool as the client export (grid 5
+   first, ±1 SD screen, 15-row cap), in the exact legacy 'Output Analysis
+   Data' schema (Property Name … Latitude, Longitude, Lat1_Rad, Lon1_Rad,
+   Distance (mi.), DistancePoints, AgeSpread, AgePoints, DaysSinceSale,
+   DatePoints, TotalPoints), with Lat1_Rad/Lon1_Rad as live `=Lat/180*PI()`
+   formulas. The full unscreened list stays available in selection.json if
+   ever needed.
 2. **`<Deal> - Comparable Sale Grid.pdf`** — one-page portrait PDF matching
    TMG's traditional export: logo, gold property band, sectioned grid,
    gold indicated-value block, footnotes, and a map of the subject + comps.
