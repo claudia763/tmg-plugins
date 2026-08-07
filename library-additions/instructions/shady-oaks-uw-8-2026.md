@@ -17,10 +17,23 @@ value $1,474,730 (under protest, ARB 8/14/2026), aggregate rate **2.1252200 / $1
 19/19 physically occupied; **17 of 19 pay rent** (S04 and S10 print "Preleased" with a
 blank rent). Rent roll as of 3/31/2026: market $16,781/mo, contractual $14,787/mo.
 
-**Recommended valuation $1,025,000 = $53,947/unit = $71/SF.** Year-1 UW NOI $83,888
-(8.18% pro forma cap), T-12 cap 11.26%, T-3 cap 11.56%. Fannie Mae Small Balance,
-80% LTV = $820,000 @ 6.74%, 1-yr IO. IRR 20.13% (target 20%), avg CoC 12.65%,
-T-3 DSCR 1.344, equity multiple 2.21x, terminal cap 8.50%.
+**Recommended valuation $1,020,000 = $53,684/unit = $71/SF.** Year-1 UW NOI $83,995
+(8.23% pro forma cap), T-12 cap 11.26%, T-3 cap 11.56%. Fannie Mae Small Balance,
+80% LTV = $816,000 @ 6.74%, 1-yr IO. IRR 20.61% (target 20%), avg CoC 12.89%,
+T-3 DSCR 1.352, equity multiple 2.25x, terminal cap 8.50%.
+
+> **The strike is $1,020,000, not the $1,025,000 an earlier revision of this note
+> carried.** Both are green; the difference is that the printed page must agree with
+> itself. `PDF Output - F&C`!G22 prints "Purchase Price" as `ROUND('UW - F&C'!Z48,-4)`
+> — a **$10,000 grid**. At a $1,025,000 strike that cell rounds UP and the page prints
+> $1,030,000 as the purchase price beside a $1,025,000 sales range and a price-per-unit
+> computed off the strike: three numbers on one client page that disagree. $1,020,000
+> is the highest green price that lands ON the grid. Solve to the grid, not just to the
+> target IRR. (`Assumptions`!H48 also has to come down to 0.15 — the template ships
+> F48=H48=0.25, which was right when G48 was 0.25 too; now that G48 is recourse-driven
+> and resolves to 0.20 on agency debt, both bands solve BELOW the strike and the printed
+> Sales Range reads low $900,000 / strike $1,025,000 / high $1,000,000. A less demanding
+> buyer supports a HIGHER price, so the high scenario takes the LOWER target IRR.)
 
 ## The whole deal is the expense normalization
 
@@ -76,13 +89,18 @@ the program's 80% ceiling. The final solve was run in the workbook itself (20 s/
 | Price | $/unit | IRR | CoC | T-3 DSCR | PF cap |
 |---|---|---|---|---|---|
 | $1,000,000 | $52,632 | 22.55% | 13.89% | 1.386 | 8.44% |
-| **$1,025,000** | **$53,947** | **20.13%** | **12.65%** | **1.344** | **8.18%** |
+| **$1,020,000** | **$53,684** | **20.61%** | **12.89%** | **1.352** | **8.23%** |
+| $1,025,000 | $53,947 | 20.13% | 12.65% | 1.344 | 8.18% |
 | $1,050,000 | $55,263 | 17.70% | 11.47% | 1.304 | 7.94% |
 | $1,075,000 | $56,579 | 15.27% | 10.34% | 1.265 | 7.70% |
 | $1,100,000 | $57,895 | 12.82% | 9.27% | 1.229 | 7.48% |
 
-IRR binds at $1,025,000; **DSCR fails above about $1,075,000**, which is the agency
-financeability ceiling and a better thing to quote to a seller than a return threshold.
+IRR binds just above $1,025,000; **DSCR fails above about $1,075,000**, which is the
+agency financeability ceiling and a better thing to quote to a seller than a return
+threshold. $1,020,000 is the shipped strike — the highest green price on the $10,000
+printing grid (see the note under the headline). The $1,020,000 row was re-verified in
+the final workbook; the rest of the table is the earlier solve and is unchanged by the
+comp refresh below, because sale and rent comps do not feed the income model.
 
 T-3 economic loss (`UW - F&C` AC8+AC9+AC10) = **7.72%**, far under 30%, so the DSCR test
 applied and the deal is not a bridge story. `AB13` occupancy 92.3% clears the 75% bridge
@@ -192,10 +210,44 @@ Reusable findings:
   good operations. Renovation and opex assumptions cannot be justified from sentiment here.
 - Flood Zone X today; Harris County's MAAPnext remapping expands the SFHA 33%.
 
+## The model's printed comps were the previous deal's — check page 4 on every build
+
+The build was interrupted twice (OOM 8/6, session limits 8/7) and finished on the third
+pass. What the earlier passes missed was **not** in the numbers — every return metric
+was right and the error gate was clean — it was that the client-facing page was about
+the wrong city:
+
+- **Sale Comparable Summary (page 4) printed five Irving/Dallas comps** and *"Subject
+  Indicated Total Value $2,030,830"*. `Comparable Grid` reads `Output_Analysis_Data__2`
+  on the `Auto Sales` sheet, which ships preloaded with a prior CMA export. Fixed with
+  `refresh_sale_comps.py` off this deal's own `Automatic CMA Analysis.xlsx`, so the model
+  and the already-delivered comp workbook agree by construction.
+- **The map beside it is a static picture** (`xl/media/image5.png`) with no formula
+  behind it, so it still showed Dallas once the grid was right. Regenerated with the
+  Leaflet/OSM template and swapped with `swap_workbook_image.py`.
+- **Rent Comparable Summary (page 1) printed empty.** Every column `Rent Summary` reads
+  (`Rent Comparison`!AM:AU) is an INDEX/MATCH or AVERAGEIF over **YardiRentName /
+  CoStar** named ranges. This deal's rent comps are a **HelloData** export, so that
+  universe is genuinely empty — the include marks and helper chain were all correct and
+  there was simply nothing behind them. Written as literals on the five marked rows
+  (`populate_rentsummary.py`), which is what the template's own "Manual" mode does.
+  Printed averages: YB 1965, 35 units, 97.7% leased, 708 SF, **$1,023.25** vs the
+  subject's $878 — the below-market story, matching the writeup.
+
+**In the model the sale grid indicates $87,269/unit = $1,658,116; the standalone
+`sales-comps` workbook says $87,071/unit = $1,654,348.** The 0.2% gap is real and
+benign: `Comparable Grid`!E26:I26 (the cap-rate-drift adjustment) is **literal 0 in the
+model** but computed in the standalone tool. Don't "fix" one to match the other without
+deciding which is intended — and note that the deal record already says this grid is a
+range indication, not a valuation.
+
 ## Deliverables
 
 `RR - Shady Oaks - 3-31-2026.xlsx` · `T-12 - Shady Oaks - March 2026.xlsx` (no Capex &
 Misc — the books have nothing below the printed NOI) · `CK - Shady Oaks - 8-7-2026.xlsx`
-+ single-sheet PDF of `PDF Output - F&C` · `Shady Oaks Apartments - Broker Valuation
-Summary.docx`. Sale comps were delivered in the prior round and re-verified this round —
-the emailed pair is correct and was NOT re-sent.
++ `CK - Shady Oaks - 8-7-2026.pdf` (single-sheet PDF of `PDF Output - F&C`, 8 pages) ·
+`Shady Oaks Apartments - Broker Valuation Summary.docx` ·
+`Estimated Loan Terms - Multifamily Debt - 8-7-2026.xlsx`. Sale comps and the CMA were
+delivered in the first round, re-verified since, and NOT re-sent; the writeup was sent
+in the second round at $1,020,000 and is unchanged, so only the model, its PDF and the
+loan terms went out in the final round.

@@ -23,11 +23,27 @@ INPUTS   --model <working model .xlsx>   (edited in place; run on a COPY)
          --ltvs 0.55,0.60,...            LTV grid to sweep
          --lo/--hi/--coarse/--fine       price search bounds and step sizes
 OUTPUT   a table of max-green price per LTV; the winning combination is written
-         back into Assumptions!G63 (LTV) and G50 (price) and saved.
+         back into Assumptions!G64 (LTV) and G50 (price) and saved.
 
-NOTE Assumptions!G63 is a formula in the template (INDEX into `Loan Terms`).
+NOTE Assumptions!G64 is a formula in the template (INDEX into `Loan Terms`).
 Writing a literal here is a deliberate deal-specific override -- say so in the
 delivery notes, and state the program's own Max LTV alongside it.
+
+*** BUG FIX 8/7/2026 (Aldine) -- this script previously wrote LTV into G63. ***
+G63 is NOT the LTV cell. Verified against the template:
+    G63 = INDEX('Loan Terms'!$L$4:$L$16, MATCH(...))   -> col L = RECOURSE
+    G64 = INDEX('Loan Terms'!$F$4:$F$16, MATCH(...))   -> col F = MAX LTV
+Writing a number into G63 did two silent, compounding things:
+  1. leverage never actually changed -- G64 kept pulling the program's Max LTV,
+     so every "LTV sweep" row was really the same max-leverage run; and
+  2. it clobbered the recourse flag that Assumptions!G48 keys off:
+     G48 = IF($G$63="Non-Recourse",$K$48,$M$48).  With G63 holding 0.66 instead
+     of the text "Non-Recourse", the IF goes FALSE and the target IRR silently
+     flips from K48 = 20% to M48 = 25% -- tightening the green test on exactly
+     the deals this script is meant to loosen, and crushing the strike price.
+Both effects push the answer the same way, so the result looks plausible and
+the error does not announce itself. Always read G48 back after writing (this
+script already does) and sanity-check it against the program's recourse column.
 
 Requires: pywin32 + desktop Excel. ~1 s per recalc, so a 6 x 20 sweep is ~2 min.
 """
@@ -92,7 +108,7 @@ def main():
 
         results = []
         for ltv in ltvs:
-            A.Range("G63").Value = ltv
+            A.Range("G64").Value = ltv   # G64 = Max LTV. NOT G63 (recourse) -- see header.
             best, price = None, a.lo
             while price <= a.hi:
                 A.Range("G50").Value = price
@@ -126,7 +142,7 @@ def main():
         win = max(good, key=lambda r: r[1])
         print(f"\nBEST: LTV {win[0]:.0%} at ${win[1]:,} "
               f"(IRR {win[2]:.2%}, CoC {win[3]:.2%}, DSCR {win[4]:.3f})")
-        A.Range("G63").Value = win[0]
+        A.Range("G64").Value = win[0]   # G64 = Max LTV. NOT G63 (recourse).
         A.Range("G50").Value = win[1]
         calc()
         wb.Save()
