@@ -193,3 +193,22 @@ divergence. Quote the range, not the point.
 - `rent-comps-the-vintage-okc-8-2026.md` — same subject, rent side; carries the
   assessor access recipe and the verified OKC comp identities
 - `scripts/apply_comp_corrections.py` — the corrections layer from §3
+
+## 8. Follow-up: submarket-anchored grids and two more script defects
+
+`submarket-anchored-promotional-sale-comps-8-2026.md` (8/8/2026) extends this file:
+
+- **Placeholder property names** slip past the §2 portfolio screen. The universe
+  carries unnamed rows literally called "Multi-Property Sale" at $5,591-$13,407/unit
+  with no "(Part of a ... Portfolio)" marker in the address, so the regex misses
+  them. Add an `exclude_placeholder_names` screen.
+- **`verify_exports.py` hardcodes a five-comp grid** in three checks and fails a
+  correct three- or four-comp deliverable, which reads like a real defect. Take the
+  count from `selection.json`.
+- **Widening the radius to reach a fifth comp can remove signal, not just add noise.**
+  Going 2.5 -> 3.0 mi on this deal collapsed the shortlist mean, blew dispersion to
+  83%, and moved the +/-1 sigma band so it trimmed the BEST comp instead of the worst.
+  Use `--outlier-sd` on a small shortlist rather than reaching for distance.
+- **Check the dispersion DIRECTION when choosing between two defensible grids.** The
+  tighter-radius grid compressed dispersion under adjustment (16.7% -> 16.3%) where
+  the metro grid widened it (15.9% -> 23.7%) - a better tiebreaker than distance.
