@@ -170,7 +170,23 @@ held at T-12 actual rather than inflated to a higher benchmark.
 
 **Final: strike $3,050,000 · IRR 22.02% · avg CoC 10.08% · T-3 DSCR 1.491 · terminal
 cap 6.00% · 60% LTV at 7.00%, Fannie Mae — Small Balance (non-recourse, so `G48`
-target reads 20%).** Sales range printed $2,840,000 / $3,050,000 / $3,350,000.
+target reads 20%).** Sales range printed **$2,800,000 / $3,050,000 / $3,300,000**
+(on the roll's 65 units — an earlier draft of this note divided by 66 and printed
+$2,840,000 / $3,350,000; the workbook is the authority).
+
+**Two corrections found when the writeup was built off this model** — see
+`writeup-off-a-model-verify-dont-transcribe-8-2026.md`:
+
+1. **The `Value-Add` column-C flags were never transcribed from Phase A.** Every tick
+   is absent, the tab totals $0, and Year-1 other income equals the T-12 actual. The
+   delivered strike is therefore a **base case with no value-add**. Nothing failed —
+   the model recalculated clean and all three tests went green — because a skipped
+   SKILL step 8 transcription is invisible to every automated gate. Assert on it.
+2. **`Contract Services` Year-1 holds `44.42` where an annual total belongs** — the
+   per-unit figure ($2,887 ÷ 65) was written into a total cell. Year-1 NOI is
+   overstated by **$2,843**; held at trailing it is **$246,557**, not $249,400.
+   Also note payroll benchmarks at **$1,300/unit** ($84,500 ÷ 65), not the $1,400
+   this note originally recorded.
 
 **Known gap on this build:** `TableRecentLeases` / `TablePropertyData` were not
 populated, so the PDF's Rent Comparable Summary prints empty with `#DIV/0!`. The income
