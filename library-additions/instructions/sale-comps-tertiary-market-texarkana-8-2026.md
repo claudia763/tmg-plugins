@@ -4,11 +4,14 @@ Covers: running `sales-comps` on a small-market deal where the whole universe
 inside 75 miles is **five sales**; why the metro-calibrated screens from the
 earlier notes actively destroy such a grid; how to catch a rent-restricted or
 age-restricted comp that no name screen can see; using TMG's **own Fannie/Freddie
-workbook as a primary source to correct a sale price**; and a self-correcting
-one-page fix for the PDF. Read **after**
+workbook as a primary source to correct a sale price**. Read **after**
 `sales-comps-from-an-address-only-8-2026.md`,
 `sales-comps-pipeline-hardening-8-2026.md` and
 `submarket-anchored-promotional-sale-comps-8-2026.md` — this extends them.
+
+> **§6 of this file is SUPERSEDED.** The PDF layout rule is now
+> `sale-comp-pdf-layout-house-rule-8-2026.md`: page 1 is fixed, the map is never
+> scaled down, and extra notes go on a "Comments" page 2.
 Worked on **Renaissance Square, 2401 County Ave, Texarkana, AR 71854** —
 65 units, 760 SF avg, geocode 33.445681 / −94.038257 (US Census, first try).
 
@@ -161,48 +164,42 @@ for p in fitz.open(saved_path):
 Texas equivalent: TDHCA. Same check cleared Fox Creek Magnolia (Columbia County
 list holds only Ridge at Magnolia and Preston Apartments), so it stayed in.
 
-## 6. `export_comps.py`: make the one-page PDF self-correcting
+## 6. `export_comps.py`: page 1 is FIXED — extra notes go to a "Comments" page
 
-A corrected/thin-market deal carries **more** disclosure text than a normal one —
-here four footnotes about a folded portfolio, an excluded restricted comp, an
-estimated vintage and a relaxed sigma. The notes block grows, and `KeepTogether`
-then bounces the whole map onto page 2, failing `verify_exports.py`'s single-page
-check. Estimating the remaining space by summing `flowable.wrap()` heights
-**underestimates it** and still spilled.
+> **SUPERSEDED 8/8/2026 — DO NOT FOLLOW THE ORIGINAL VERSION OF THIS SECTION.**
+> It told you to shrink the map until a growing notes block fitted on one page.
+> Dmytro has ruled the opposite: *"The notes in the pdf sale comp report are
+> fixed and should not be changed as this messes up the map size. Any extra
+> notes are to be added to a second page on the pdf as 'Comments'."*
+> Read **`sale-comp-pdf-layout-house-rule-8-2026.md`** for the rule and the
+> implementation.
 
-Do not delete disclosures to fit the page. Build, count pages, shrink, repeat:
+What the superseded approach did, and why it was wrong: a build/count/shrink
+loop drove the map down to **150pt** on this deal — about half its designed
+height — because four disclosures had been appended to the page-1 notes block.
+Every automated check passed and the client-facing map was a squashed strip.
+**Page count was being protected at the expense of the artifact.**
 
-```python
-import pypdfium2 as _pdfium
-cap_h = None
-for _ in range(12):
-    build_pdf(..., map_max_h=cap_h)          # caps Image height, keeps aspect
-    if len(_pdfium.PdfDocument(pdf)) == 1:
-        break
-    cap_h = (cap_h or 230) - 20
-    if cap_h < 90:
-        print("WARNING: could not fit the map — shorten the extra notes")
-        break
-```
+Correct behaviour now: the page-1 Notes block carries only the standard
+selection sentence, the equal-weighting sentence and footnotes ¹ ² ³; the map
+always renders at full page width; every extra disclosure goes on page 2 under
+a "Comments" band. `verify_exports.py` accepts 1 page, or 2 when page 2 is the
+Comments page.
 
-with, inside `build_pdf`, `Image(map_png, width=mw, height=mh, hAlign="CENTER")`
-after `if map_max_h and mh > map_max_h: mh, mw = map_max_h, map_max_h * w / h`.
-Texarkana settled at 150pt on the second rebuild.
+Two items from the original section that are STILL TRUE and still needed:
 
-Two more `export_comps.py` items worth carrying upstream:
+- **`&#8226;` bullets and `&#8594;` arrows render; `&#8308;`–`&#8311;` (⁴–⁷) do NOT.**
+  Carlito has ¹ ² ³ but not the higher superscripts, and reportlab draws the
+  missing glyph as a black square — invisible to the verifier, caught only by
+  rendering.
+- **Strip `(Part of a N Property Portfolio)` from the PDF's Address row.** In a
+  fixed `colWidth` cell that suffix consumes the whole address and ellipsizes it
+  into noise; disclose the allocation on the Comments page instead.
 
-- **An `--extra-note` (append) flag.** Disclosures belong on the client-facing
-  artifact, not only in a Notes doc. **Use `&#8226;` bullets, not `&#8308;`–`&#8311;`
-  superscripts — Carlito has ¹²³ but not ⁴⁵⁶⁷, and reportlab renders the missing
-  glyphs as black squares.** (Confirmed by rendering; invisible to the verifier.)
-- **Strip `(Part of a N Property Portfolio)` from the PDF's Address row** and
-  disclose it in a footnote. In a fixed `colWidth` cell that suffix consumes the
-  whole address and ellipsizes it into noise.
-
-The §5 autofit patch and its ellipsis fallback from the two prior notes both
-remain necessary and both fired here. **Render to PNG and look at it every run** —
-`scripts/pdf_to_png.py` (contributed with this note) does it via pypdfium2, since
-this host has no `pdftoppm`.
+The §5 autofit patch and its ellipsis fallback apply to the page-1 grid table
+and both still fire here. **Render every page to PNG and look at it on every
+run** — `scripts/pdf_to_png.py` (contributed with this note) does it via
+pypdfium2, since this host has no `pdftoppm`.
 
 ## 7. When the subject's YEAR BUILT does not exist anywhere
 
