@@ -157,8 +157,15 @@ small or recent assets. Verified failures: a property returned as "28 units,
 built 1997" was actually 18 units built 2020; another as "297 units, blank
 year" was 34 units built 2023. Large established properties reconciled well.
 
-For each community in the comp table, WebSearch the street address to get the
-property name, then confirm unit count and vintage. Report the Dwellsy value
+For each community in the comp table, run
+`scripts/rentcast_xref.py --csv "out/*.csv" -o xref.csv` first — it pulls
+county-record `yearBuilt` / `unitCount` / owner per address from the RentCast
+API (`RENTCAST_API_KEY` in the repo-root `.env`; calls are metered, the script
+caps at 25/run). Year built is its strong suit; unit counts are often absent
+and marketing names never appear in county records, so then WebSearch the
+street address to get the property name and fill the gaps. A RentCast record
+coming back "Single Family" for a complex address means the lookup hit a
+unit-level parcel — verify that one by hand. Report the Dwellsy value
 alongside the verified one where they disagree. Never put an unverified vintage
 in a deck. In urban mode a verified year can move a comp in or out of the
 vintage window — verify BEFORE trimming, not after.

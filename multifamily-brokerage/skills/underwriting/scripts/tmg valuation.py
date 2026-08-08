@@ -172,26 +172,51 @@ ASSUMPTIONS = {
 }
 
 # ============================================================================
-# 3. VALUE-ADD TAB
+# 3. VALUE-ADD TAB  (matches the expanded Value-Add tab, Aug-2026 revision)
 # ----------------------------------------------------------------------------
 # Each item: category 'renovation' | 'amenity' | 'operations'.
 # Only the FIRST THREE included items per category count (the sheet matches
-# "r"/"rr"/"rrr" flag strings in row order).
-#   renovation -> annual NOI becomes extra rent growth spread over years 1-3
-#   amenity    -> annual NOI added to Other Income (Year 1 base)
-#   operations -> effect-specific: water-expense savings or RUBS income lines
-# Costs (numeric only) sum into the Value-Add equity budget (H74).
+# "r"/"rr"/"rrr" flag strings in row order) — include AT MOST three per
+# category; validate_value_add() errors on more rather than silently dropping.
+#
+# Effects and where they land in the engine:
+#   rent            renovation NOI -> extra rent growth spread over years 1-3
+#   other_income    annual NOI added to Other Income (Year 1 base)
+#   water_savings   subtracted from the water/sewer expense line
+#   electric_savings / trash_savings / payroll_savings
+#                   subtracted from the matching expense line (only when that
+#                   assumption is None, i.e. T-12-driven — mirrors water)
+#   bad_debt_savings  added to Year-1 net rental income (economic-loss offset)
+#   tax_savings     subtracted from the Year-1 RE tax line
+#   other_opex_savings  subtracted from total Year-1 opex (unclassified)
+#   rubs_water / rubs_electric / rubs_trash   added to the RUBS income lines
+#   prereq          cost-only row (no NOI wiring)
+#   assumption      NARRATIVE row — no NOI wiring here; achieve the effect by
+#                   setting the matching ASSUMPTIONS input instead (expense
+#                   override / benchmark, vacancy_pct, tax_assessment_factor).
+#
+# Manual-count rows (Down-Unit, Non-Revenue, EV, STR, Corporate) ship with
+# n=0 / noi=0 — set the real count AND $NOI before including, or the
+# validator errors. Costs (numeric only) sum into the equity budget (H74).
 # ============================================================================
 
 VALUE_ADD_ITEMS = [
     # (name, category, include?, units, cost/unit, $NOI/unit/mo, effect)
+
+    # ---- Renovations -------------------------------------------------------
     ("Light Interior Renovations",    "renovation", False, 87,  1500, 50, "rent"),
     ("Moderate Interior Renovations", "renovation", False, 174, 5000, 100, "rent"),
     ("Premium Interior Renovations",  "renovation", False, 87,  5000, 150, "rent"),
     ("Exterior Renovation & Def. Maint.", "renovation", False, 174, 3000, 0, "prereq"),
     ("Washer/Dryer Hookups",          "renovation", False, 87,  5000, 50, "rent"),
     ("Leasing Office & Gym Reno",     "renovation", False, 2, 100000, 0, "prereq"),
+    ("Down-Unit Restoration",         "renovation", False, 0, 25000, 0, "rent"),      # n & noi manual
+    ("Non-Revenue Unit Conversion",   "renovation", False, 0,  5000, 0, "rent"),      # n & noi manual
+    ("Smart Home Technology Package", "renovation", False, 174,  750, 25, "rent"),
+    ("Individual HVAC Replacement",   "renovation", False, 174, 6000, 75, "rent"),
+    ("Garage / Storage Additions",    "renovation", False, 34.8, 2500, 100, "rent"),
 
+    # ---- Amenity / Other Income -------------------------------------------
     ("Exterior Amenities",            "amenity", False, 174, 2000, 0, "prereq"),
     ("Pet Fees & Rent",               "amenity", True,  34.8, 0, 30, "other_income"),
     ("Gated Parking",                 "amenity", False, 174, 500, 10, "other_income"),
@@ -202,17 +227,289 @@ VALUE_ADD_ITEMS = [
     ("Valet Trash",                   "amenity", False, 174, 0, 10, "other_income"),
     ("Package Delivery Lockers",      "amenity", False, 87, 500, 10, "other_income"),
     ("Self Storage Units",            "amenity", False, 20, 1000, 50, "other_income"),
-    ("Short Term Rentals / AirBnB",   "amenity", False, 8.7, 0, 475.26, "other_income"),
+    ("Short Term Rentals / AirBnB",   "amenity", False, 0, 0, 0, "other_income"),     # n & noi manual
     ("Laundry & Vending Income",      "amenity", False, 34.8, 2000, 40, "other_income"),
     ("In-Unit Washer & Dryers",       "amenity", False, 87, 1000, 50, "other_income"),
     ("Solar Panels",                  "amenity", False, 17.4, 10000, 50, "other_income"),
+    ("Fee Income Optimization",       "amenity", False, 174, 0, 15, "other_income"),
+    ("Renters Insurance Program",     "amenity", False, 174, 0, 12, "other_income"),
+    ("Telecom Door-Fee Agreements",   "amenity", False, 174, 0,  8, "other_income"),
+    ("EV Charging Stations",          "amenity", False, 0, 5000, 30, "other_income"), # n = station count
+    ("Cell Tower / Billboard Lease",  "amenity", False, 1, 0, 10, "other_income"),
+    ("Corporate / Furnished Housing", "amenity", False, 0, 8000, 200, "other_income"),# n manual; 200 = NOI net of opex
+    ("Amenity Fee",                   "amenity", False, 174, 0, 15, "other_income"),
 
+    # ---- Opex Improvement & RUBS ------------------------------------------
     ("Water Conservation: Fixtures",  "operations", False, 174, 250, 20, "water_savings"),
+    ("Lease-up / Occupancy Improvements", "operations", False, 174, 0, 0, "assumption"),
     ("Water Conservation: Plumbing",  "operations", False, 174, 1500, 50, "water_savings"),
     ("Implement/Increase Water RUBS", "operations", False, 174, 0, 35, "rubs_water"),
     ("Implement/Increase Electric RUBS", "operations", False, 174, 0, 22, "rubs_electric"),
     ("Misc. Billback (Pest/Trash/Gas)", "operations", False, 174, 0, 23, "rubs_trash"),
+    ("Reduce Opex to Comp Averages",  "operations", False, 174, 0, 0, "assumption"),
+    ("Reduce Insurance Expense",      "operations", False, 174, 0, 0, "assumption"),
+    ("Reduce Tax Expense / Protest",  "operations", False, 174, 0, 0, "assumption"),
+    ("LED / Common-Area Electric Retrofit", "operations", False, 174, 150, 12, "electric_savings"),
+    ("Water Submetering",             "operations", False, 174, 450, 45, "rubs_water"),
+    ("Trash Compactor Conversion",    "operations", False, 174, 300, 10, "trash_savings"),
+    ("Revenue Mgmt / Screening",      "operations", False, 174, 0, 25, "bad_debt_savings"),
+    ("Payroll Optimization",          "operations", False, 174, 0, 20, "payroll_savings"),
+    ("Utility Bill Audit",            "operations", False, 174, 0,  8, "other_opex_savings"),
+    ("Tax Exemption (HFC/PFC)",       "operations", False, 174, 0, 150, "tax_savings"),
 ]
+
+# ----------------------------------------------------------------------------
+# Trigger metadata — the Value-Add tab's "AGENT INSTRUCTIONS" column encoded
+# as data. Conflicts are BY NAME (row numbers on the tab shift when rows are
+# inserted; names do not — this also fixes the tab's stale "row 41" backlink
+# on the Corporate/Furnished row, which should point at the STR row).
+# source: RR=rent roll, T12=trailing financials, COMPS=comp tabs, WEB=web
+# research, SITE=physical verification required, MODEL=model input, LEGAL=
+# ordinance/statute check.  verify: 'docs' = safe on document review alone;
+# 'site' = DO NOT model income until physically verified; 'flag' = narrative
+# flag-for-buyer only, never modeled without executed evidence.
+# ----------------------------------------------------------------------------
+
+VALUE_ADD_RULES = {
+    "Light Interior Renovations": dict(
+        trigger="Rent Comparison shows renovated comps at a premium of <= $50/unit/mo over subject.",
+        source=["COMPS"], verify="docs",
+        conflicts=["Moderate Interior Renovations", "Premium Interior Renovations"]),
+    "Moderate Interior Renovations": dict(
+        trigger="Rent Comparison premium $75-125/unit/mo AND Final_RR renovation status shows a partial reno set.",
+        source=["COMPS", "RR"], verify="docs",
+        conflicts=["Light Interior Renovations", "Premium Interior Renovations"]),
+    "Premium Interior Renovations": dict(
+        trigger="Rent Comparison premium > $125/unit/mo AND comp finish level is stainless/granite.",
+        source=["COMPS"], verify="docs",
+        conflicts=["Light Interior Renovations", "Moderate Interior Renovations"]),
+    "Exterior Renovation & Def. Maint.": dict(
+        trigger="An interior tier is selected AND subject exterior trails the comp set.",
+        source=["COMPS", "SITE"], verify="site", conflicts=[],
+        notes="Prerequisite row; cost only. Scope needs site inspection or PCA."),
+    "Washer/Dryer Hookups": dict(
+        trigger="Final_RR shows no in-unit W/D and comps offer connections.",
+        source=["RR", "COMPS", "SITE"], verify="site",
+        conflicts=["In-Unit Washer & Dryers"],
+        notes="Plumbing/electric capacity and closet space must be confirmed on site."),
+    "Leasing Office & Gym Reno": dict(
+        trigger="Comp set offers a renovated office or gym the subject lacks.",
+        source=["COMPS", "SITE"], verify="site", conflicts=[]),
+    "Down-Unit Restoration": dict(
+        trigger="Final_RR occupancy status flags down/offline/non-rentable units. Set n to the exact count.",
+        source=["RR", "SITE"], verify="site", conflicts=[],
+        notes="Cost/unit varies widely by cause (fire vs flood vs deferred maint) — scope on site."),
+    "Non-Revenue Unit Conversion": dict(
+        trigger="Final_RR lease type / occupancy status shows model, office, employee, or storage units. Set n.",
+        source=["RR"], verify="docs", conflicts=[],
+        notes="Verify with seller the unit is genuinely convertible."),
+    "Smart Home Technology Package": dict(
+        trigger="Comps offer smart locks/thermostats and subject does not, OR premium interiors selected.",
+        source=["COMPS", "WEB"], verify="docs", conflicts=[]),
+    "Individual HVAC Replacement": dict(
+        trigger="Year built pre-1980 AND T-12 shows large owner-paid electric consistent with central plant/window units.",
+        source=["T12", "WEB", "SITE"], verify="site",
+        conflicts=["Implement/Increase Electric RUBS"],
+        notes="Conversion shifts electric to tenants — do not also model electric RUBS on the same load."),
+    "Garage / Storage Additions": dict(
+        trigger="Comps charge for garage or storage rental.",
+        source=["COMPS", "SITE"], verify="site", conflicts=[]),
+
+    "Exterior Amenities": dict(
+        trigger="Comps have dog park/playground/pool the subject lacks. Requires confirmed excess land.",
+        source=["COMPS", "SITE"], verify="site", conflicts=[],
+        notes="Prerequisite row; cost only."),
+    "Pet Fees & Rent": dict(
+        trigger="ALWAYS include a small amount ($10-15/unit-equivalent NOI). Increase to the full $30 only if "
+                "pet-friendly features exist at the subject or Exterior Amenities is selected.",
+        source=["COMPS", "T12"], verify="docs", conflicts=[],
+        notes="Check T-12 other income for existing pet income first — do not double count."),
+    "Gated Parking": dict(
+        trigger="Comps have controlled-access gating the subject lacks.",
+        source=["COMPS", "SITE"], verify="site", conflicts=[]),
+    "Reserved Parking": dict(
+        trigger="ALWAYS include unless the subject already charges for reserved parking (check T-12 detail).",
+        source=["T12"], verify="docs", conflicts=[]),
+    "Reserved & Covered Parking": dict(
+        trigger="Include unless subject already has carports; stacks on Reserved Parking.",
+        source=["SITE"], verify="site", conflicts=[],
+        notes="Verification wins over the always-include default: flag but model $0 until the "
+              "surface-parking layout is confirmed."),
+    "Property WIFI": dict(
+        trigger="Premium interiors selected OR comps offer property WiFi.",
+        source=["COMPS"], verify="docs", conflicts=[]),
+    "Cable & Internet Package": dict(
+        trigger="Premium interiors selected OR comps offer bulk internet. Check T-12 for an existing bulk contract.",
+        source=["COMPS", "T12"], verify="docs",
+        conflicts=["Telecom Door-Fee Agreements"],
+        notes="Bulk package and exclusive-marketing door fees are usually mutually exclusive contracts."),
+    "Valet Trash": dict(
+        trigger="Units >= 200 AND (premium interiors selected OR comps offer valet). Check T-12 for existing billing.",
+        source=["T12", "COMPS"], verify="docs", conflicts=[]),
+    "Package Delivery Lockers": dict(
+        trigger="Units >= 200. Requires common-area square footage.",
+        source=["SITE"], verify="site", conflicts=[]),
+    "Self Storage Units": dict(
+        trigger="Demonstrated storage demand AND confirmed excess land, ideally with major-road frontage.",
+        source=["WEB", "SITE"], verify="site", conflicts=[]),
+    "Short Term Rentals / AirBnB": dict(
+        trigger="Near airport / major business district / tourist driver AND municipality does not PROHIBIT STRs "
+                "(license-required jurisdictions like OKC qualify as allowed). Set n and noi manually.",
+        source=["WEB", "LEGAL"], verify="docs",
+        conflicts=["Corporate / Furnished Housing"],
+        notes="If prohibited, route to Corporate / Furnished Housing instead."),
+    "Laundry & Vending Income": dict(
+        trigger="Final_RR shows units without W/D connections. Confirm room condition and any route contract on site.",
+        source=["RR", "SITE"], verify="site", conflicts=[]),
+    "In-Unit Washer & Dryers": dict(
+        trigger="Final_RR or amenities confirm EXISTING connections.",
+        source=["RR"], verify="docs",
+        conflicts=["Washer/Dryer Hookups"],
+        notes="Same-unit-set conflict: hookups must already exist for this row."),
+    "Solar Panels": dict(
+        trigger="Modeled hold >= 7 years only. Roof age/load/orientation need inspection.",
+        source=["MODEL", "SITE"], verify="site", conflicts=[]),
+    "Fee Income Optimization": dict(
+        trigger="T-12 fee income/unit below the comp fee schedules (scrape comp property websites for app/admin/pet fees).",
+        source=["T12", "WEB"], verify="docs",
+        conflicts=["Reduce Opex to Comp Averages"],
+        notes="Conflict only if comp expense benchmarks are net of fee income — check before stacking."),
+    "Renters Insurance Program": dict(
+        trigger="T-12 shows no renters-insurance / master-liability income line.",
+        source=["T12"], verify="docs", conflicts=[]),
+    "Telecom Door-Fee Agreements": dict(
+        trigger="T-12 shows no door-fee / revenue-share income; confirm no exclusive agreement with seller.",
+        source=["T12"], verify="docs",
+        conflicts=["Cable & Internet Package"]),
+    "EV Charging Stations": dict(
+        trigger="Built 2015+ or comp set demonstrates EV demand (PlugShare/aerials). n = station count. "
+                "Panel capacity needs site check.",
+        source=["WEB", "SITE"], verify="site", conflicts=[]),
+    "Cell Tower / Billboard Lease": dict(
+        trigger="SITUATIONAL. Highway frontage / rooftop access / carrier interest. Never model speculatively — "
+                "omit unless a lease or LOI is evidenced.",
+        source=["WEB", "SITE"], verify="flag", conflicts=[]),
+    "Corporate / Furnished Housing": dict(
+        trigger="Near hospitals / universities / corporate campuses, OR STRs are prohibited (use in place of the "
+                "STR row). Set n and confirm the NOI figure is net of furnishing/turn costs.",
+        source=["WEB"], verify="docs",
+        conflicts=["Short Term Rentals / AirBnB"]),
+    "Amenity Fee": dict(
+        trigger="Exterior Amenities selected or an amenity package already exists. Check T-12 for an existing fee.",
+        source=["T12"], verify="docs", conflicts=[]),
+
+    "Water Conservation: Fixtures": dict(
+        trigger="T-12 water > $65/unit/mo AND property pays water.",
+        source=["T12"], verify="docs",
+        conflicts=["Reduce Opex to Comp Averages"]),
+    "Lease-up / Occupancy Improvements": dict(
+        trigger="Final_RR physical occupancy trails comp average. Do NOT model above the comp ceiling.",
+        source=["RR", "COMPS"], verify="docs", conflicts=[],
+        notes="Narrative row: achieve via ASSUMPTIONS vacancy_pct, not a wired dollar line."),
+    "Water Conservation: Plumbing": dict(
+        trigger="T-12 water > $100/unit/mo (supply-line loss, not fixture waste). Repair scope needs inspection.",
+        source=["T12", "SITE"], verify="site",
+        conflicts=["Reduce Opex to Comp Averages"]),
+    "Implement/Increase Water RUBS": dict(
+        trigger="Comps bill water back at a higher recovery ratio than subject T-12.",
+        source=["T12", "COMPS"], verify="docs",
+        conflicts=["Water Submetering"]),
+    "Implement/Increase Electric RUBS": dict(
+        trigger="Comps bill electric back / tenant-metered AND subject T-12 shows owner-paid electric. "
+                "Confirm meter configuration.",
+        source=["T12", "COMPS", "SITE"], verify="docs",
+        conflicts=["Individual HVAC Replacement"]),
+    "Misc. Billback (Pest/Trash/Gas)": dict(
+        trigger="Comps bill these back AND the lines are owner-paid in subject T-12. Net out anything already recovered.",
+        source=["T12", "COMPS"], verify="docs", conflicts=[]),
+    "Reduce Opex to Comp Averages": dict(
+        trigger="T-12 total opex/unit exceeds comp average.",
+        source=["T12", "COMPS"], verify="docs",
+        conflicts=["Reduce Insurance Expense", "Reduce Tax Expense / Protest",
+                   "Trash Compactor Conversion", "Payroll Optimization", "Utility Bill Audit",
+                   "LED / Common-Area Electric Retrofit",
+                   "Water Conservation: Fixtures", "Water Conservation: Plumbing"],
+        notes="Component rows double count against this umbrella row — net out or pick one side. "
+              "(List extends the tab's netting note, which omitted LED and water conservation.)"),
+    "Reduce Insurance Expense": dict(
+        trigger="T-12 insurance/unit exceeds comp average. Verify against loss runs / quotes.",
+        source=["T12", "COMPS"], verify="docs",
+        conflicts=["Reduce Opex to Comp Averages"],
+        notes="Narrative row: achieve via the ASSUMPTIONS insurance override or 'agency' benchmark."),
+    "Reduce Tax Expense / Protest": dict(
+        trigger="Assessed value above market or T-12 taxes exceed comp averages.",
+        source=["T12", "WEB"], verify="docs",
+        conflicts=["Tax Exemption (HFC/PFC)", "Reduce Opex to Comp Averages"],
+        notes="Narrative row: achieve via tax_assessment_factor. An HFC/PFC exemption supersedes a protest."),
+    "LED / Common-Area Electric Retrofit": dict(
+        trigger="T-12 owner-paid common-area electric exceeds comp average. Fixture type needs a site look.",
+        source=["T12", "SITE"], verify="site",
+        conflicts=["Reduce Opex to Comp Averages"]),
+    "Water Submetering": dict(
+        trigger="Property pays water AND jurisdiction permits true submetering (check per state — OK generally "
+                "permits; TX under PUC rules). Plumbing configuration needs site check.",
+        source=["T12", "LEGAL", "SITE"], verify="site",
+        conflicts=["Implement/Increase Water RUBS"]),
+    "Trash Compactor Conversion": dict(
+        trigger="Units >= 200 AND T-12 refuse expense exceeds comp average. Placement needs site space/access.",
+        source=["T12", "SITE"], verify="site",
+        conflicts=["Reduce Opex to Comp Averages"]),
+    "Revenue Mgmt / Screening": dict(
+        trigger="T-12 bad debt > 2% of GPR.",
+        source=["T12"], verify="docs", conflicts=[],
+        notes="Distinct from lease-up: occupancy and bad debt are separate lines — both may be included."),
+    "Payroll Optimization": dict(
+        trigger="T-12 payroll/unit exceeds comp average. Do not staff below what the unit count requires.",
+        source=["T12", "COMPS"], verify="docs",
+        conflicts=["Reduce Opex to Comp Averages"]),
+    "Utility Bill Audit": dict(
+        trigger="ALWAYS include — contingency-based, no upfront cost. Model only a modest recovery.",
+        source=["T12"], verify="docs",
+        conflicts=["Reduce Opex to Comp Averages"]),
+    "Tax Exemption (HFC/PFC)": dict(
+        trigger="State is TEXAS only (no Oklahoma equivalent) AND an HFC/PFC structure is available to the buyer. "
+                "FLAG FOR BUYER — never model as achieved without executed structure documents.",
+        source=["WEB", "LEGAL"], verify="flag",
+        conflicts=["Reduce Tax Expense / Protest"]),
+}
+
+
+def validate_value_add(items=None, rules=None, state=None):
+    """Sanity-check the include flags against VALUE_ADD_RULES.
+
+    Returns (errors, warnings). Errors are selections the tab logic forbids;
+    warnings are selections that need evidence attached (site verification,
+    double-count netting). Call before run_model(); nothing here mutates.
+    """
+    items = items if items is not None else VALUE_ADD_ITEMS
+    rules = rules if rules is not None else VALUE_ADD_RULES
+    errors, warnings = [], []
+    included = [it for it in items if it[2]]
+    names = {it[0] for it in included}
+
+    counts = {}
+    for (name, cat, inc, n, cost_pu, noi_pu_mo, effect) in included:
+        counts[cat] = counts.get(cat, 0) + 1
+        r = rules.get(name, {})
+        for other in r.get("conflicts", []):
+            if other in names and name < other:   # report each pair once
+                pair = f"'{name}' + '{other}'"
+                if other in ("Reduce Opex to Comp Averages",) or                    name in ("Reduce Opex to Comp Averages",):
+                    warnings.append(f"Double-count risk: {pair} — net one out.")
+                else:
+                    errors.append(f"Mutually exclusive: {pair}.")
+        if r.get("verify") == "site":
+            warnings.append(f"'{name}' requires PHYSICAL ASSET VERIFICATION before income is modeled.")
+        if r.get("verify") == "flag":
+            warnings.append(f"'{name}' is flag-for-buyer only — confirm executed evidence (lease/LOI/structure docs).")
+        if effect not in ("prereq", "assumption") and (not n or not noi_pu_mo):
+            errors.append(f"'{name}' included with n={n}, noi/unit/mo={noi_pu_mo} — set real values first.")
+        if name == "Tax Exemption (HFC/PFC)" and state and str(state).upper() not in ("TX", "TEXAS"):
+            errors.append("HFC/PFC exemption is Texas-only; state is %s." % state)
+    for cat, c in counts.items():
+        if c > 3:
+            errors.append(f"{c} '{cat}' items included — the model only counts the first THREE; trim to 3.")
+    return errors, warnings
 
 # ============================================================================
 # 4. FACTORS TAB  (exit-cap build-up)
@@ -360,6 +657,9 @@ def value_add_summary(items, units_total):
     """Replicates the Value-Add tab roll-ups (top 3 per category)."""
     out = {"other_income": 0.0, "renovation_noi": 0.0, "water_savings": 0.0,
            "rubs_water": 0.0, "rubs_electric": 0.0, "rubs_trash": 0.0,
+           "electric_savings": 0.0, "trash_savings": 0.0,
+           "payroll_savings": 0.0, "bad_debt_savings": 0.0,
+           "tax_savings": 0.0, "other_opex_savings": 0.0,
            "budget": 0.0, "selected": []}
     counts = {"renovation": 0, "amenity": 0, "operations": 0}
     for (name, cat, inc, n, cost_pu, noi_pu_mo, effect) in items:
@@ -374,8 +674,10 @@ def value_add_summary(items, units_total):
             out["renovation_noi"] += annual_noi
         elif effect == "other_income":
             out["other_income"] += annual_noi
-        elif effect in ("water_savings", "rubs_water", "rubs_electric", "rubs_trash"):
+        elif effect in out and effect not in ("budget", "selected",
+                                              "renovation_noi", "other_income"):
             out[effect] += annual_noi
+        # 'prereq' and 'assumption' rows: cost only, no NOI wiring.
     return out
 
 
@@ -403,7 +705,8 @@ def run_model(prop=PROPERTY, t12m=T12_MONTHLY, a=ASSUMPTIONS,
     gpr1 = t12_market_rent * (1 + a["year1_rent_growth"])          # AK5 (LTL=0 -> AK7)
     gpr1 -= gpr1 * a["loss_to_lease_pct"]
     econ_loss1 = a["vacancy_pct"] + a["concessions_pct"] + a["bad_debt_pct"]
-    net_rental_income1 = gpr1 * (1 - econ_loss1)                    # AK11
+    net_rental_income1 = gpr1 * (1 - econ_loss1) \
+        + va["bad_debt_savings"]                                    # AK11 (+ VA bad-debt offset)
 
     rubs1 = {
         "rubs_electric": t12(t12m["rubs_electric"]) + va["rubs_electric"],
@@ -431,24 +734,34 @@ def run_model(prop=PROPERTY, t12m=T12_MONTHLY, a=ASSUMPTIONS,
     for key in ("contract_services", "repairs_maintenance", "administration",
                 "marketing", "payroll"):
         exp[key] = expense_line(key)
+    if a["payroll"] is None:
+        exp["payroll"] -= va["payroll_savings"]                     # VA payroll optimization
     controllable = sum(exp.values())                                # AK26
 
-    exp["util_electric"] = expense_line("util_electric")
+    electric = expense_line("util_electric")
+    if a["util_electric"] is None:
+        electric -= va["electric_savings"]                          # VA LED retrofit
+    exp["util_electric"] = electric
     water = expense_line("util_water_sewer")
     if a["util_water_sewer"] is None:
         water -= va["water_savings"]                                # Assumptions!G34
     exp["util_water_sewer"] = water
-    exp["util_trash"] = expense_line("util_trash")
+    trash = expense_line("util_trash")
+    if a["util_trash"] is None:
+        trash -= va["trash_savings"]                                # VA compactor conversion
+    exp["util_trash"] = trash
     exp["util_gas"] = expense_line("util_gas")
     utilities = (exp["util_electric"] + exp["util_water_sewer"]
                  + exp["util_trash"] + exp["util_gas"])             # AK31
 
     mgmt_fee1 = a["management_fee_pct"] * egi1                      # AK32
     insurance1 = expense_line("insurance")                          # AK33
-    taxes1 = a["tax_assessment_factor"] * prop["total_tax_rate"] * price  # AK34
+    taxes1 = a["tax_assessment_factor"] * prop["total_tax_rate"] * price \
+        - va["tax_savings"]                                         # AK34 (- VA exemption, if modeled)
     capex = a["capex_reserve_per_unit"] * units                     # AK36
 
-    opex1 = controllable + utilities + mgmt_fee1 + insurance1 + taxes1  # AK35
+    opex1 = (controllable + utilities + mgmt_fee1 + insurance1 + taxes1
+             - va["other_opex_savings"])                            # AK35 (- VA utility audit etc.)
     total_exp1 = opex1 + capex                                      # AK37
     noi1 = egi1 - total_exp1                                        # AK38
 

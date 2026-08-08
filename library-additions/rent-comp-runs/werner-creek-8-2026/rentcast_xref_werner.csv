@@ -1,0 +1,7 @@
+address,city,zip,dwellsy_units,dwellsy_year,rc_property_type,rc_unit_count,rc_year_built,rc_owner,rc_subdivision,units_match,year_match,note
+818 Pinemont Dr,Houston,77018,69,1972,Apartment,,1972,,,?,Y,
+101 E Tidwell Rd,Houston,77022,80,,Single Family,,,,,?,?,record is Single Family — likely a unit-level parcel; verify by hand (LoopNet: Vista Villa 1964 / 79 units)
+735 W Cavalcade St,Houston,77009,24,1970,Apartment,,1970,,,?,Y,
+4411 Fulton St,Houston,77009,63,,Apartment,,1961,,,?,Y,matches HAR 1961 (The Station)
+4300 Rosslyn Rd,Houston,77018,28,1961,Apartment,,1962,,,?,N,1-yr discrepancy (1961 vs 1962) — in window either way
+4742 Yale St,Houston,77018,37,,Apartment,,1964,,,?,Y,NEW verification — in the 1961-1981 window; qualifies as comp #6
