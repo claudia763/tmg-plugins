@@ -198,3 +198,23 @@ commission a shoot before launch.
 return `"- 2.1%"` where your check expects `"-2.1%"`. Before "fixing" a missing
 figure, grep the extracted text for its surrounding context — the number is
 usually there and correct.
+
+## 6. Follow-up: font fallback, and photos from a competitor's OM
+
+`vintage-okc-bov-deck-8-2026.md` (8/8/2026) adds three corrections to this file:
+
+1. **Carlito is not installed on the agent server.** `fc-match Carlito` returns
+   DejaVu Sans, which is not metric-compatible; the stack falls through to
+   Liberation Sans, roughly **10% wider than Calibri**. Every characters-per-line
+   anchor in section 1 above is therefore optimistic on this box — budget ~10%
+   fewer characters, and add `'Liberation Sans'` to the font stack explicitly.
+2. **`verify_bov_deck.py` cannot see overflow.** On that build it reported
+   147/147 figures passing while a callout box was clipped mid-sentence, because
+   the truncated text contained no figures. The page PNGs are the only check that
+   catches section 1's trap.
+3. **Section 4c assumes a Yardi e-brochure.** Pulling photos from a rival
+   brokerage's OM instead brings different traps — comparable-property photos of
+   *other assets* mixed into the same PDF, competitor markup baked into pixels,
+   and third-party watermarks that are better avoided by re-cropping an unmarked
+   source than by shipping the mark. OM photos are usually 2000 px+ natives, so
+   they downscale rather than upscale and need only a light scrim.
